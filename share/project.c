@@ -153,13 +153,14 @@ void game() {
                 player.y_pixel_dest = player.y_pixel;
                 player.x_pixel_dest = player.x_pixel;
                 camera.rotation     = 0.0f;
-                camera.zoom         = 1.5f;
+                camera.zoom         = 1.0f;
                 plant_a = malloc(sizeof(Plant_a));
                 water_a = malloc(sizeof(Water_a));
                 ground_a = malloc(sizeof(Ground_a));
                 // :read ground.data
                 {
                     FILE *f = fopen("assets/ground.data", "r");
+			assert(f);
                     if (f != NULL) {
                         long int f_len;
                         fseek(f, 0, SEEK_END);
@@ -233,8 +234,6 @@ void game() {
             }
 
             // @Hack: this should be later
-            BeginDrawing();
-                ClearBackground(BLACK);
                 //ClearBackground(WHITE);
                 // :fade in
                 static float fade_cos;
@@ -399,6 +398,8 @@ void game() {
             }
 
 
+            BeginDrawing();
+                ClearBackground(BLACK);
             camera.offset.x     = screen.x/2 - 32 + -(player.x_pixel * camera.zoom);
             camera.offset.y     = screen.y/2 - 32 + -(player.y_pixel * camera.zoom);
             if (actionPressed()) {
@@ -415,6 +416,7 @@ void game() {
                         DrawRectangle(water_a->items[i].x * 64, water_a->items[i].y * 64, 64, 64, Fade(BLUE, 0.75f));
                     }
                     //   :draw plant 
+
                     for (int i = 0; i < plant_a->count; ++i) {
                         DrawTextureEx(plant_tex, (Vector2) { plant_a->items[i].x * 64, plant_a->items[i].y * Tile_Size - Tile_Size / 4  }, 0, 4, BLACK);
                     }

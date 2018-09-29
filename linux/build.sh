@@ -1,7 +1,8 @@
 set -e
 trap 'echo "Returned $? <<< ${BASH_COMMAND}"' EXIT
 
-gcc -o linux_platform  linux_platform.o -O1 -s -Wall -std=c99 -D_DEFAULT_SOURCE -Wno-missing-braces -D_DEFAULT_SOURCE -I. -I/opt/raylib/release/include -I/opt/raylib/src -I/opt/raylib/src/external -L. -L/opt/raylib/release/libs/linux -L/opt/raylib/src  -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -DPLATFORM_DESKTOP
+cc -ggdb -g -std=c99 -c -I /opt/raylib/src linux_platform.c -o ./obj/linux_platform.o
+gcc -o linux_platform  obj/linux_platform.o -O1 -s -Wall -std=c99 -D_DEFAULT_SOURCE -Wno-missing-braces -D_DEFAULT_SOURCE -I. -I/opt/raylib/release/include -I/opt/raylib/src -I/opt/raylib/src/external -L. -L/opt/raylib/release/libs/linux -L/opt/raylib/src  -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -DPLATFORM_DESKTOP
 ./linux_platform
 
 #cc -ggdb -g -std=c99 -c -I /opt/raylib/src linux_platform.c -o ./obj/linux_platform.o
