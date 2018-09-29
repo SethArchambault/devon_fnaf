@@ -138,6 +138,7 @@ void game() {
             static Plant_a *plant_a;
             static Water_a *water_a;
             static Camera2D camera;
+            static Ground_a *ground_a;
             if (init == 0) {
                 init                = 1;
                 player.x              = 1;
@@ -155,6 +156,23 @@ void game() {
                 camera.zoom         = 1.5f;
                 plant_a = malloc(sizeof(Plant_a));
                 water_a = malloc(sizeof(Water_a));
+                ground_a = malloc(sizeof(Ground_a));
+                // :read ground.data
+                {
+                    FILE *f = fopen("assets/ground.data", "r");
+                    if (f != NULL) {
+                        long int f_len;
+                        fseek(f, 0, SEEK_END);
+                        f_len = ftell(f);
+                        assert(f_len <= sizeof (Ground_a));
+                        fseek(f, 0, SEEK_SET);
+                        fread((void *)ground_a, f_len, 1, f);
+                        fclose(f);
+                    }
+                    else {
+                        plant_a->count      = 0;
+                    }
+                }
                 // :read plants.data
                 {
                     FILE *f = fopen("assets/plants.data", "r");
@@ -184,10 +202,35 @@ void game() {
                 }
                 else {
                     water_a->count      = 0;
-                    //assert(false);
                 }
             }
                     static int flashlight_on = 0;
+
+            if(IsKeyPressed(KEY_Q)) {
+                ground_a->items[ground_a->count].x = player.x;
+                ground_a->items[ground_a->count].y = player.y;
+                ground_a->items[ground_a->count].type  =1; // tile
+                ++ground_a->count;
+                FILE * f = fopen("assets/ground.data", "w");
+                if (f != NULL) {
+                    fwrite((void *)ground_a, sizeof (Ground_a), 1, f);
+                    fclose(f);
+                }
+            }
+            if(IsKeyPressed(KEY_W)) {
+                for (int i = 0; i < ground_a->count; ++i) {
+                    if(ground_a->items[i].x == player.x &&
+                    ground_a->items[i].y == player.y) {
+                        ground_a->items[i] = ground_a->items[ground_a->count - 1];
+                        --ground_a->count;
+                    }
+                }
+                FILE * f = fopen("assets/ground.data", "w");
+                if (f != NULL) {
+                    fwrite((void *)ground_a, sizeof (Ground_a), 1, f);
+                    fclose(f);
+                }
+            }
 
             // @Hack: this should be later
             BeginDrawing();
@@ -363,15 +406,9 @@ void game() {
             }
             // :draw
                 BeginMode2D(camera); // All that happens in here will move with the camera
-                    // :floor
-                    for (int y = -10; y < 50; y = y + 1) {
-                        for (int x = -10; x < 50; x = x + 1) {
-                            DrawTextureEx(ground_tex, (Vector2) { x * Tile_Size, y * Tile_Size}, 0, 4, WHITE);
-                            /*
-                            DrawCircle(x*Tile_Size, y*Tile_Size, 4, Fade(YELLOW,  .08)); 
-                            DrawCircle(x*Tile_Size, y*Tile_Size, 2, Fade(ORANGE,  .09)); 
-                            */
-                        }
+                    // :ground
+                    for (int i = 0; i < ground_a->count; ++i) {
+                        DrawTextureEx(ground_tex, (Vector2) {ground_a->items[i].x * Tile_Size, ground_a->items[i].y * Tile_Size}, 0, 4, WHITE);
                     }
                     //   :draw water
                     for (int i = 0; i < water_a->count; ++i) {
@@ -381,10 +418,6 @@ void game() {
                     for (int i = 0; i < plant_a->count; ++i) {
                         DrawTextureEx(plant_tex, (Vector2) { plant_a->items[i].x * 64, plant_a->items[i].y * Tile_Size - Tile_Size / 4  }, 0, 4, BLACK);
                     }
-                    /* different ways to animate.. 
-                     * player has a dest
-                     * If player.src != player.dest then do an elastic move
-                     */
 
                     if (player_action != DEAD && frame_passed > 10) {
                         if (player.moving_y || player.moving_x) { 
