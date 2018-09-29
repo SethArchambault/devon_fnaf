@@ -413,6 +413,7 @@ void game() {
                 EndMode2D();
                     // :flashlight
 
+/*
                     if (player_action != DEAD && flashlight_on){
                         float half = GetScreenWidth()/2;
 
@@ -423,7 +424,8 @@ void game() {
                         float adjacent = midpoint.x - mouse.x;
                         float opposite = midpoint.y - mouse.y; 
                         float alpha_radian = atan(opposite/ adjacent);  
-                        float beta_radian = alpha_radian - M_PI / 2;
+                        //float beta_radian = alpha_radian - M_PI / 2;
+                        //float beta_radian = alpha_radian - M_PI / 2;
                         int cursor_y = 0;
                         int line_height = 20;
 
@@ -455,10 +457,9 @@ void game() {
                         DrawPolyEx(points, 3, Fade(RED,0.3));
                         //DrawCircleGradient(mouse.x, mouse.y, radius, Fade(RED, fade_cos), Fade(BLACK, fade_cos));
                         //DrawCircle(mouse.x, mouse.y, radius, Fade(RED, fade_cos));
-                        /*
-                            */
 
                     }
+*/
                 // :noise
 #if false
             {
