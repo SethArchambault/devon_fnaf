@@ -4,6 +4,7 @@
 #define Ground_Max 10000
 #define Water_Max 10000
 #include <math.h>
+#include <string.h>
 
 
 typedef struct {
@@ -47,7 +48,7 @@ void print_plant_a(char msg[30],Plant_a *plant_a) {
 }
 
 typedef enum {
-    TITLE, CHARACTER, PLAY
+    TITLE, DRAW, PLAY
 } Mode;
 typedef enum {
     STAND, WALK, DEAD
@@ -96,7 +97,6 @@ void game() {
     Texture2D plant_tex   = LoadTexture("assets/plant.png");
     Texture2D person_stand_tex  = LoadTexture("assets/devon_standing.png");
     Texture2D person_walk_tex  = LoadTexture("assets/devon_walking.png");
-    Vector2 cursor; 
 
     Mode mode = TITLE; 
 
@@ -108,14 +108,18 @@ void game() {
         ++frame_long;
         // :splash_screen
         if (TITLE == mode) {
-            if (actionPressed()) {
+            Vector2 cursor;
+            if (IsKeyPressed(KEY_P)) {
                 mode = PLAY;
+            }
+            if (IsKeyPressed(KEY_D)) {
+                mode = DRAW;
             }
             BeginDrawing();
                 ClearBackground(BLACK);
                 cursor.x =  screen.x/2 - 450;
                 cursor.y = 100;
-                DrawText("Five Nights at Corey's",
+                DrawText("Five Nights at YouTube Factory",
                         cursor.x, // xpos
                         cursor.y, // ypos
                         60, // fontsize
@@ -126,8 +130,131 @@ void game() {
                         cursor.x, // xpos
                         cursor.y, // ypos
                         46, // fontsize
-                        Fade(WHITE,  1.4f + cos(frame_passed* 0.8f)  ) //textColor
+                        WHITE
                         );
+                cursor.y += 70;
+                DrawText("Press p to Play",
+                        cursor.x, // xpos
+                        cursor.y, // ypos
+                        26, // fontsize
+                        WHITE
+                        );
+                cursor.y += 70;
+                DrawText("Press d to Draw",
+                        cursor.x, // xpos
+                        cursor.y, // ypos
+                        26, // fontsize
+                        WHITE
+                        );
+            EndDrawing();
+        }
+        if (DRAW == mode) {
+            static Vector2 cursor;
+#define DefaultColor BLACK
+#define ColorMax 9
+            static Color colors[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
+            if (IsKeyPressed(KEY_D)) {
+                mode = DRAW;
+            }
+               float  fade_cos = fabs(cos(frame_long * 0.1f));
+               static int cursor_color = 0;
+                static char * canvas = {0};
+#define CanvasW 16
+#define CanvasSize CanvasW   * CanvasW
+
+                if (!canvas) { 
+                    canvas = calloc(CanvasSize+1,1);
+                }
+               if (cursor.x >= 0) {
+                    if (IsKeyPressed(KEY_P)) {
+                        mode = PLAY;
+                    }
+                    if (IsKeyPressed(KEY_DOWN)) {
+                        cursor.y += 1;
+                    }
+                    if (IsKeyPressed(KEY_UP)) {
+                        cursor.y -= 1;
+                    }
+                    if (IsKeyPressed(KEY_RIGHT)) {
+                        cursor.x += 1;
+                    }
+                    if (IsKeyPressed(KEY_LEFT)) {
+                        cursor.x -= 1;
+                    }
+                    if (IsKeyDown(KEY_SPACE) && cursor.x > 0 && cursor.y > 0) {
+                        int position = ((int)cursor.y-1) * CanvasW + ((int)cursor.x-1);
+                        canvas[position] = cursor_color;
+                    }
+               }
+               else {
+                    if (IsKeyDown(KEY_DOWN)) {
+                        if((int)cursor.x == -3) {
+                            colors[(int)cursor.y-1].r -= 1;
+                        }
+                        if((int)cursor.x == -2) {
+                            colors[(int)cursor.y-1].g -= 1;
+                        }
+                        if((int)cursor.x == -1) {
+                            colors[(int)cursor.y-1].b -= 1;
+                        }
+                    }
+                    if (IsKeyDown(KEY_UP)) {
+                        if((int)cursor.x == -3) {
+                            colors[(int)cursor.y-1].r += 1;
+                        }
+                        if((int)cursor.x == -2) {
+                            colors[(int)cursor.y-1].g += 1;
+                        }
+                        if((int)cursor.x == -1) {
+                            colors[(int)cursor.y-1].b += 1;
+                        }
+                    }
+                    if (IsKeyPressed(KEY_RIGHT)) {
+                        cursor.x += 1;
+                    }
+                    if (IsKeyPressed(KEY_LEFT)) {
+                        cursor.x -= 1;
+                    }
+               }
+                //:colorpallet interaction
+                if (cursor.x == 0) {
+                    if (cursor.y > 0 && cursor.y-1 < ColorMax) {
+                        cursor_color = (int)cursor.y-1;
+                    }
+                }
+            BeginDrawing();
+                ClearBackground(BLACK);
+
+#define CanvasOffset 90
+#define CursorPixelW 32
+
+
+#define PixelFromCursorX(x) (x) * CursorPixelW + CanvasOffset
+
+                // :canvas
+                for (int i = 0; i < CanvasSize;++i) {
+                    //printf("canvas %d '%c'\n",i, canvas[i]);
+                    assert((int)canvas[i] < ColorMax);
+                    DrawRectangle(PixelFromCursorX((int)((i) % CanvasW)+1), PixelFromCursorX(((int)(i)/CanvasW)+1), CursorPixelW, CursorPixelW, colors[canvas[i]]);
+                }
+                // :minimap
+                for (int i = 0; i < CanvasSize;++i) {
+                    DrawRectangle(CanvasOffset + 32 + (i % CanvasW)*2,CanvasOffset + (i / CanvasW)*2, 3, 3, colors[canvas[i]]);
+                }
+
+                // :colorpallet
+                for (int i = 0; i < ColorMax; ++i) {
+                    if (cursor.x == 0 && i == cursor.y-1) continue;
+                    DrawRectangle(PixelFromCursorX(0), PixelFromCursorX(i+1), CursorPixelW, CursorPixelW, colors[i]);
+                }
+
+                // :canvas
+                DrawRectangleLines(PixelFromCursorX(1), PixelFromCursorX(1), CanvasW*CursorPixelW, CanvasW*CursorPixelW, Fade(WHITE,0.3));
+                // :cursor
+                if (cursor.y > 0) {
+                    DrawRectangle(PixelFromCursorX(cursor.x), PixelFromCursorX(cursor.y), CursorPixelW, CursorPixelW, Fade(colors[cursor_color],fade_cos));
+                }
+                DrawRectangleLines(PixelFromCursorX(cursor.x), PixelFromCursorX(cursor.y), CursorPixelW, CursorPixelW, GRAY);
             EndDrawing();
         }
         // :character selection
