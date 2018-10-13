@@ -1,6 +1,6 @@
 #define Role_Max 6
 #define Tile_Size 64
-#define Monster_Max 10000
+#define Monster_Max 910000
 #define Ground_Max 10000
 #define Water_Max 10000
 #include <math.h>
@@ -379,6 +379,7 @@ void game() {
         // :play
         if (PLAY == mode) {
             static int init = 0;
+            static int noclip = 0;
             static Player player;
             static Monster_a *monster_a;
             static Water_a *water_a;
@@ -454,6 +455,9 @@ void game() {
 
             if (IsKeyPressed(KEY_D)) {
                 mode = DRAW;
+            }
+            if (IsKeyPressed(KEY_N)) {
+                noclip = !noclip;
             }
 
             if(IsKeyDown(KEY_F)) {
@@ -665,21 +669,40 @@ void game() {
                 }
             } // alive
             static float speed = 4.0f; 
-            if (player.x_pixel < player.x_pixel_dest)       player.x_pixel += speed;
-            else if (player.x_pixel > player.x_pixel_dest)  player.x_pixel -= speed;
-            else {
-                player.moving_x = 0;
-                player.x = player.x_dest;
-                player.x_pixel = player.x * Tile_Size;
-                player.x_pixel_dest = player.x_pixel;
+            // :collision
+            int collision = 0;
+            if (!noclip) {
+                collision = 1;
+                for(int i = 0; i < ground_a->count; ++i) {
+                    if (ground_a->items[i].x == player.x_dest && ground_a->items[i].y == player.y_dest) {
+                        collision = 0;
+                        break;
+                    }
+                }
+                if (collision) {
+                        player.x_dest = player.x;
+                        player.y_dest = player.y;
+                        player.x_pixel_dest = player.x_pixel;
+                        player.y_pixel_dest = player.y_pixel;
+                }
             }
-            if (player.y_pixel < player.y_pixel_dest)       player.y_pixel += speed;
-            else if (player.y_pixel > player.y_pixel_dest)  player.y_pixel -= speed;
-            else {
-                player.moving_y = 0;
-                player.y = player.y_dest;
-                player.y_pixel = player.y * Tile_Size;
-                player.y_pixel_dest = player.y_pixel;
+            if (!collision) {
+                if (player.x_pixel < player.x_pixel_dest)       player.x_pixel += speed;
+                else if (player.x_pixel > player.x_pixel_dest)  player.x_pixel -= speed;
+                else {
+                    player.moving_x = 0;
+                    player.x = player.x_dest;
+                    player.x_pixel = player.x * Tile_Size;
+                    player.x_pixel_dest = player.x_pixel;
+                }
+                if (player.y_pixel < player.y_pixel_dest)       player.y_pixel += speed;
+                else if (player.y_pixel > player.y_pixel_dest)  player.y_pixel -= speed;
+                else {
+                    player.moving_y = 0;
+                    player.y = player.y_dest;
+                    player.y_pixel = player.y * Tile_Size;
+                    player.y_pixel_dest = player.y_pixel;
+                }
             }
 
 
@@ -765,7 +788,7 @@ void game() {
                             points[1] = r_tan;
                         }
                         //DrawPolyEx(points, 3, Fade(RED, fade_cos));
-                        DrawPolyEx(points, 3, Fade(RED,0.3));
+                        DrawPolyEx(points, 3, Fade(RED,1.0));
                         //DrawCircleGradient(mouse.x, mouse.y, radius, Fade(RED, fade_cos), Fade(BLACK, fade_cos));
                         //DrawCircle(mouse.x, mouse.y, radius, Fade(RED, fade_cos));
 
