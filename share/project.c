@@ -88,12 +88,13 @@ int int_from_float(float f) {
 void game() {
     //Vector2 screen = {1280, 446};
     Vector2 screen = {1280, 760};
+    //Vector2 screen = {720, 480};
 
     InitWindow(screen.x, screen.y, "Vibrant");
     SetTargetFPS(59);
 
     Texture2D ground_tex  = LoadTexture("assets/tile_floor.png");
-    Texture2D plant_tex   = LoadTexture("assets/plant.png");
+    //Texture2D plant_tex   = LoadTexture("assets/plant.png");
     Texture2D person_stand_tex  = LoadTexture("assets/devon_standing.png");
     Texture2D person_walk_tex  = LoadTexture("assets/devon_walking.png");
     Vector2 cursor; 
@@ -207,16 +208,26 @@ void game() {
             }
                     static int flashlight_on = 0;
 
-            if(IsKeyPressed(KEY_Q)) {
-                ground_a->items[ground_a->count].x = player.x;
-                ground_a->items[ground_a->count].y = player.y;
-                ground_a->items[ground_a->count].type  =1; // tile
-                ++ground_a->count;
-                FILE * f = fopen("assets/ground.data", "w");
-                if (f != NULL) {
-                    fwrite((void *)ground_a, sizeof (Ground_a), 1, f);
-                    fclose(f);
+            if(IsKeyDown(KEY_Q)) {
+		int found = 0;
+                for (int i = 0; i < ground_a->count; ++i) {
+                    if(ground_a->items[i].x == player.x &&
+                    ground_a->items[i].y == player.y) {
+			found = 1;
+			
+                    }
                 }
+		if (!found) {
+			ground_a->items[ground_a->count].x = player.x;
+			ground_a->items[ground_a->count].y = player.y;
+			ground_a->items[ground_a->count].type  =1; // tile
+			++ground_a->count;
+			FILE * f = fopen("assets/ground.data", "w");
+			if (f != NULL) {
+			    fwrite((void *)ground_a, sizeof (Ground_a), 1, f);
+			    fclose(f);
+			}
+}
             }
             if(IsKeyPressed(KEY_W)) {
                 for (int i = 0; i < ground_a->count; ++i) {
@@ -412,14 +423,18 @@ void game() {
                         DrawTextureEx(ground_tex, (Vector2) {ground_a->items[i].x * Tile_Size, ground_a->items[i].y * Tile_Size}, 0, 4, WHITE);
                     }
                     //   :draw water
+/*
                     for (int i = 0; i < water_a->count; ++i) {
                         DrawRectangle(water_a->items[i].x * 64, water_a->items[i].y * 64, 64, 64, Fade(BLUE, 0.75f));
                     }
                     //   :draw plant 
+*/
 
+/*
                     for (int i = 0; i < plant_a->count; ++i) {
                         DrawTextureEx(plant_tex, (Vector2) { plant_a->items[i].x * 64, plant_a->items[i].y * Tile_Size - Tile_Size / 4  }, 0, 4, BLACK);
                     }
+*/
 
                     if (player_action != DEAD && frame_passed > 10) {
                         if (player.moving_y || player.moving_x) { 
@@ -539,6 +554,7 @@ void game() {
                         Fade(WHITE, 0.5-fade_cos) //textColor
                         );
                         */
+DrawFPS(10,10);
             EndDrawing();
         }
     }//while
