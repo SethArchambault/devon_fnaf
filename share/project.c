@@ -183,7 +183,19 @@ void game() {
             static Vector2 cursor;
 #define DefaultColor BLANK 
 #define ColorMax 9
-            static Color colors[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
+            static Color *colors;
+            if (!colors){
+                colors = malloc(sizeof(Color) * ColorMax);
+                colors[0] = DefaultColor;
+                colors[1] = BLUE;
+                colors[2] = RED;
+                colors[3] = GREEN;
+                colors[4] = ORANGE;
+                colors[5] = WHITE;
+                colors[6] = GRAY;
+                colors[7] = PURPLE;
+                colors[8] = VIOLET;
+            }
             // :load colors
             static int colors_loaded = 0;
             if (!colors_loaded) {
@@ -473,17 +485,6 @@ void game() {
                     fwrite((void *)monster_a, sizeof (Ground_a), 1, f);
                     fclose(f);
                 }
-		if (!found) {
-			ground_a->items[ground_a->count].x = player.x;
-			ground_a->items[ground_a->count].y = player.y;
-			ground_a->items[ground_a->count].type  =1; // tile
-			++ground_a->count;
-			FILE * f = fopen("assets/ground.data", "w");
-			if (f != NULL) {
-			    fwrite((void *)ground_a, sizeof (Ground_a), 1, f);
-			    fclose(f);
-			}
-}
             }
             if(IsKeyDown(KEY_C)) {
                 for (int i = 0; i < monster_a->count; ++i) {
