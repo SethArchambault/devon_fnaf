@@ -1,9 +1,10 @@
 #define Role_Max 6
 #define Tile_Size 64
-#define Plant_Max 10000
+#define Monster_Max 10000
 #define Ground_Max 10000
 #define Water_Max 10000
 #include <math.h>
+#include <string.h>
 
 
 typedef struct {
@@ -22,7 +23,7 @@ typedef struct {
     int x;
     int y;
     Color color;
-} Plant;
+} Monster;
 
 typedef struct {
     Ground items[Ground_Max];
@@ -35,19 +36,19 @@ typedef struct {
 } Water_a;
 
 typedef struct {
-    Plant items[Plant_Max];
+    Monster items[Monster_Max];
     int count;
-} Plant_a;
+} Monster_a;
 
-void print_plant_a(char msg[30],Plant_a *plant_a) {
-    printf("\n%s plant_a.count %d \n", msg, plant_a->count);
-    for(int i = 0; i < plant_a->count; ++i) {
-        printf("    %d x:%2d y:%2d\n", i, plant_a->items[i].x, plant_a->items[i].y);
+void print_monster_a(char msg[30],Monster_a *monster_a) {
+    printf("\n%s monster_a.count %d \n", msg, monster_a->count);
+    for(int i = 0; i < monster_a->count; ++i) {
+        printf("    %d x:%2d y:%2d\n", i, monster_a->items[i].x, monster_a->items[i].y);
     }
 }
 
 typedef enum {
-    TITLE, CHARACTER, PLAY
+    TITLE, DRAW, PLAY
 } Mode;
 typedef enum {
     STAND, WALK, DEAD
@@ -94,10 +95,15 @@ void game() {
     SetTargetFPS(59);
 
     Texture2D ground_tex  = LoadTexture("assets/tile_floor.png");
+<<<<<<< HEAD
     //Texture2D plant_tex   = LoadTexture("assets/plant.png");
+=======
+    Texture2D monster_tex   = LoadTexture("assets/monster.png");
+>>>>>>> 209040fcbcc4696bb8b4271d5d15d66bc76e8f25
     Texture2D person_stand_tex  = LoadTexture("assets/devon_standing.png");
     Texture2D person_walk_tex  = LoadTexture("assets/devon_walking.png");
-    Vector2 cursor; 
+
+
 
     Mode mode = TITLE; 
 
@@ -109,14 +115,18 @@ void game() {
         ++frame_long;
         // :splash_screen
         if (TITLE == mode) {
-            if (actionPressed()) {
+            Vector2 cursor;
+            if (IsKeyPressed(KEY_P)) {
                 mode = PLAY;
+            }
+            if (IsKeyPressed(KEY_D)) {
+                mode = DRAW;
             }
             BeginDrawing();
                 ClearBackground(BLACK);
                 cursor.x =  screen.x/2 - 450;
                 cursor.y = 100;
-                DrawText("Five Nights at Corey's",
+                DrawText("Five Nights at YouTube Factory",
                         cursor.x, // xpos
                         cursor.y, // ypos
                         60, // fontsize
@@ -127,8 +137,234 @@ void game() {
                         cursor.x, // xpos
                         cursor.y, // ypos
                         46, // fontsize
-                        Fade(WHITE,  1.4f + cos(frame_passed* 0.8f)  ) //textColor
+                        WHITE
                         );
+                cursor.y += 70;
+                DrawText("Press p to Play",
+                        cursor.x, // xpos
+                        cursor.y, // ypos
+                        23, // fontsize
+                        WHITE
+                        );
+                cursor.y += 40;
+                DrawText("Press d to Draw",
+                        cursor.x, // xpos
+                        cursor.y, // ypos
+                        23, // fontsize
+                        WHITE
+                        );
+                cursor.y += 70;
+                DrawText("KEYS",
+                        cursor.x, // xpos
+                        cursor.y, // ypos
+                        23, // fontsize
+                        WHITE
+                        );
+                cursor.y += 40;
+                DrawText("c = clear",
+                        cursor.x, // xpos
+                        cursor.y, // ypos
+                        23, // fontsize
+                        WHITE
+                        );
+                cursor.y += 40;
+                DrawText("f = floor",
+                        cursor.x, // xpos
+                        cursor.y, // ypos
+                        23, // fontsize
+                        WHITE
+                        );
+                cursor.y += 40;
+                DrawText("m = monster",
+                        cursor.x, // xpos
+                        cursor.y, // ypos
+                        23, // fontsize
+                        WHITE
+                        );
+            EndDrawing();
+        }
+        if (DRAW == mode) {
+            static Vector2 cursor;
+#define DefaultColor BLANK 
+#define ColorMax 9
+            static Color colors[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
+            // :load colors
+            static int colors_loaded = 0;
+            if (!colors_loaded) {
+                colors_loaded = 1;
+                    FILE *f = fopen("assets/color_set.data", "r");
+                    if (f != NULL) {
+                        printf("loaded colors\n");
+                        long int f_len;
+                        fseek(f, 0, SEEK_END);
+                        f_len = ftell(f);
+                        assert(f_len <= ColorMax * sizeof (Color));
+                        fseek(f, 0, SEEK_SET);
+                        fread((void *)colors, f_len, 1, f);
+                        fclose(f);
+                    }
+            }
+               float  fade_cos = fabs(cos(frame_long * 0.1f));
+               static int cursor_color = 0;
+                static char * canvas = {0};
+#define CanvasW 16
+#define CanvasSize CanvasW   * CanvasW
+
+                if (!canvas) { 
+                    canvas = calloc(CanvasSize+1,1);
+                    // :load canvas
+                    {
+                        FILE *f = fopen("assets/canvas.data", "r");
+                        if (f != NULL) {
+                            long int f_len;
+                            fseek(f, 0, SEEK_END);
+                            f_len = ftell(f);
+                            assert(f_len <= CanvasSize);
+                            fseek(f, 0, SEEK_SET);
+                            fread((void *)canvas, f_len, 1, f);
+                            fclose(f);
+                        }
+                    }
+                }
+#define PixelsFromCanvas for(int y = 0; y < CanvasW; ++y) {\
+                            for(int x = 0; x < CanvasW; ++x) {\
+                                pixels[y * CanvasW+ x] = colors[canvas[y* CanvasW+x]];\
+                            }\
+                        }
+                static Color *pixels; 
+                if (!pixels) pixels= (Color *)malloc(CanvasW*CanvasW*sizeof(Color));
+                if (IsKeyPressed(KEY_S)) {
+                    PixelsFromCanvas;
+                    stbi_write_png("assets/monster.png", CanvasW, CanvasW, 4, pixels,CanvasW*4); 
+                    // :save colors
+                    {
+                        FILE * f = fopen("assets/color_set.data", "w");
+                        if (f != NULL) {
+                            fwrite((void *)colors, ColorMax, 1, f);
+                            fclose(f);
+                        }
+                    }
+                    // :save canvas
+                    {
+                        FILE * f = fopen("assets/canvas.data", "w");
+                        if (f != NULL) {
+                            fwrite((void *)canvas, CanvasSize, 1, f);
+                            fclose(f);
+                        }
+                    }
+                        // update texture
+                        {
+                            int width = 16;
+                            for(int y = 0; y < width; ++y) {
+                                for(int x = 0; x < width; ++x) {
+                                    pixels[y * width + x] = colors[canvas[y* width+x]];
+                                }
+                            }
+                            UpdateTexture(monster_tex, pixels);
+                        }
+                }
+               if (cursor.x >= 0) {
+                    if (IsKeyPressed(KEY_P)) {
+                        mode = PLAY;
+                    }
+                    if (IsKeyPressed(KEY_DOWN)) {
+                        cursor.y += 1;
+                    }
+                    if (IsKeyPressed(KEY_UP)) {
+                        cursor.y -= 1;
+                    }
+                    if (IsKeyPressed(KEY_RIGHT)) {
+                        cursor.x += 1;
+                    }
+                    if (IsKeyPressed(KEY_LEFT)) {
+                        cursor.x -= 1;
+                    }
+                    if (IsKeyDown(KEY_SPACE) && cursor.x > 0 && cursor.y > 0) {
+                        int position = ((int)cursor.y-1) * CanvasW + ((int)cursor.x-1);
+                        canvas[position] = cursor_color;
+
+
+                        // update texture
+                        {
+                            int width = 16;
+                            for(int y = 0; y < width; ++y) {
+                                for(int x = 0; x < width; ++x) {
+                                    pixels[y * width + x] = colors[canvas[y* width+x]];
+                                }
+                            }
+                            UpdateTexture(monster_tex, pixels);
+                        }
+                    }
+               }
+               else {
+                    if (IsKeyDown(KEY_DOWN)) {
+                        if((int)cursor.x == -3) {
+                            colors[(int)cursor.y-1].r -= 1;
+                        }
+                        if((int)cursor.x == -2) {
+                            colors[(int)cursor.y-1].g -= 1;
+                        }
+                        if((int)cursor.x == -1) {
+                            colors[(int)cursor.y-1].b -= 1;
+                        }
+                    }
+                    if (IsKeyDown(KEY_UP)) {
+                        if((int)cursor.x == -3) {
+                            colors[(int)cursor.y-1].r += 1;
+                        }
+                        if((int)cursor.x == -2) {
+                            colors[(int)cursor.y-1].g += 1;
+                        }
+                        if((int)cursor.x == -1) {
+                            colors[(int)cursor.y-1].b += 1;
+                        }
+                    }
+                    if (IsKeyPressed(KEY_RIGHT)) {
+                        cursor.x += 1;
+                    }
+                    if (IsKeyPressed(KEY_LEFT)) {
+                        cursor.x -= 1;
+                    }
+               }
+                //:colorpallet interaction
+                if (cursor.x == 0) {
+                    if (cursor.y > 0 && cursor.y-1 < ColorMax) {
+                        cursor_color = (int)cursor.y-1;
+                    }
+                }
+            BeginDrawing();
+                ClearBackground(BLACK);
+
+#define CanvasOffset 90
+#define CursorPixelW 32
+
+
+#define PixelFromCursorX(x) (x) * CursorPixelW + CanvasOffset
+
+                // :canvas
+                for (int i = 0; i < CanvasSize;++i) {
+                    //printf("canvas %d '%c'\n",i, canvas[i]);
+                    assert((int)canvas[i] < ColorMax);
+                    DrawRectangle(PixelFromCursorX((int)((i) % CanvasW)+1), PixelFromCursorX(((int)(i)/CanvasW)+1), CursorPixelW, CursorPixelW, colors[canvas[i]]);
+                }
+                // :minimap
+                for (int i = 0; i < CanvasSize;++i) {
+                    DrawRectangle(CanvasOffset + 32 + (i % CanvasW)*2,CanvasOffset + (i / CanvasW)*2, 3, 3, colors[canvas[i]]);
+                }
+
+                // :colorpallet
+                for (int i = 0; i < ColorMax; ++i) {
+                    if (cursor.x == 0 && i == cursor.y-1) continue;
+                    DrawRectangle(PixelFromCursorX(0), PixelFromCursorX(i+1), CursorPixelW, CursorPixelW, colors[i]);
+                }
+
+                // :canvas
+                DrawRectangleLines(PixelFromCursorX(1), PixelFromCursorX(1), CanvasW*CursorPixelW, CanvasW*CursorPixelW, Fade(WHITE,0.3));
+                // :cursor
+                if (cursor.y > 0) {
+                    DrawRectangle(PixelFromCursorX(cursor.x), PixelFromCursorX(cursor.y), CursorPixelW, CursorPixelW, Fade(colors[cursor_color],fade_cos));
+                }
+                DrawRectangleLines(PixelFromCursorX(cursor.x), PixelFromCursorX(cursor.y), CursorPixelW, CursorPixelW, GRAY);
             EndDrawing();
         }
         // :character selection
@@ -136,7 +372,7 @@ void game() {
         if (PLAY == mode) {
             static int init = 0;
             static Player player;
-            static Plant_a *plant_a;
+            static Monster_a *monster_a;
             static Water_a *water_a;
             static Camera2D camera;
             static Ground_a *ground_a;
@@ -154,8 +390,13 @@ void game() {
                 player.y_pixel_dest = player.y_pixel;
                 player.x_pixel_dest = player.x_pixel;
                 camera.rotation     = 0.0f;
+<<<<<<< HEAD
                 camera.zoom         = 1.0f;
                 plant_a = malloc(sizeof(Plant_a));
+=======
+                camera.zoom         = 1.5f;
+                monster_a = malloc(sizeof(Monster_a));
+>>>>>>> 209040fcbcc4696bb8b4271d5d15d66bc76e8f25
                 water_a = malloc(sizeof(Water_a));
                 ground_a = malloc(sizeof(Ground_a));
                 // :read ground.data
@@ -172,24 +413,24 @@ void game() {
                         fclose(f);
                     }
                     else {
-                        plant_a->count      = 0;
+                        monster_a->count      = 0;
                     }
                 }
-                // :read plants.data
+                // :read monster.data
                 {
-                    FILE *f = fopen("assets/plants.data", "r");
+                    FILE *f = fopen("assets/monster.data", "r");
                     if (f != NULL) {
                         long int f_len;
                         fseek(f, 0, SEEK_END);
                         f_len = ftell(f);
-                        assert(f_len <= sizeof (Plant_a));
+                        assert(f_len <= sizeof (Monster_a));
                         fseek(f, 0, SEEK_SET);
-                        fread((void *)plant_a, f_len, 1, f);
-                        //print_plant_a("After Read", plant_a);
+                        fread((void *)monster_a, f_len, 1, f);
+                        //print_monster_a("After Read", monster_a);
                         fclose(f);
                     }
                     else {
-                        plant_a->count      = 0;
+                        monster_a->count      = 0;
                     }
                 }
                 FILE *f = fopen("assets/water.data", "r");
@@ -208,6 +449,7 @@ void game() {
             }
                     static int flashlight_on = 0;
 
+<<<<<<< HEAD
             if(IsKeyDown(KEY_Q)) {
 		int found = 0;
                 for (int i = 0; i < ground_a->count; ++i) {
@@ -216,6 +458,40 @@ void game() {
 			found = 1;
 			
                     }
+=======
+            if (IsKeyPressed(KEY_D)) {
+                mode = DRAW;
+            }
+
+            if(IsKeyDown(KEY_F)) {
+                int floor_detected = 0;
+                for (int i = 0; i < ground_a->count; ++i) {
+                    if(ground_a->items[i].x == player.x &&
+                    ground_a->items[i].y == player.y) {
+                        floor_detected = 1;
+                    }
+                }
+                if (!floor_detected) {
+                    ground_a->items[ground_a->count].x = player.x;
+                    ground_a->items[ground_a->count].y = player.y;
+                    ground_a->items[ground_a->count].type  =1; // tile
+                    ++ground_a->count;
+                    FILE * f = fopen("assets/ground.data", "w");
+                    if (f != NULL) {
+                        fwrite((void *)ground_a, sizeof (Ground_a), 1, f);
+                        fclose(f);
+                    }
+                }
+            }
+            if(IsKeyPressed(KEY_M)) {
+                monster_a->items[monster_a->count].x = player.x;
+                monster_a->items[monster_a->count].y = player.y;
+                ++monster_a->count;
+                FILE * f = fopen("assets/monster.data", "w");
+                if (f != NULL) {
+                    fwrite((void *)monster_a, sizeof (Ground_a), 1, f);
+                    fclose(f);
+>>>>>>> 209040fcbcc4696bb8b4271d5d15d66bc76e8f25
                 }
 		if (!found) {
 			ground_a->items[ground_a->count].x = player.x;
@@ -229,7 +505,22 @@ void game() {
 			}
 }
             }
-            if(IsKeyPressed(KEY_W)) {
+            if(IsKeyDown(KEY_C)) {
+                for (int i = 0; i < monster_a->count; ++i) {
+                    if(monster_a->items[i].x == player.x &&
+                    monster_a->items[i].y == player.y) {
+                        monster_a->items[i] = monster_a->items[monster_a->count - 1];
+                        --monster_a->count;
+                    }
+                }
+                static FILE * f;
+               f = fopen("assets/monster.data", "w");
+                if (f != NULL) {
+                    fwrite((void *)monster_a, sizeof (Monster_a), 1, f);
+                    fclose(f);
+                }
+
+                // delete floor
                 for (int i = 0; i < ground_a->count; ++i) {
                     if(ground_a->items[i].x == player.x &&
                     ground_a->items[i].y == player.y) {
@@ -237,10 +528,12 @@ void game() {
                         --ground_a->count;
                     }
                 }
-                FILE * f = fopen("assets/ground.data", "w");
-                if (f != NULL) {
-                    fwrite((void *)ground_a, sizeof (Ground_a), 1, f);
-                    fclose(f);
+                {
+                    f = fopen("assets/ground.data", "w");
+                    if (f != NULL) {
+                        fwrite((void *)ground_a, sizeof (Ground_a), 1, f);
+                        fclose(f);
+                    }
                 }
             }
 
@@ -265,28 +558,28 @@ void game() {
                 }
                 if (fade_cos <= 0.0001 && move_times >= 2) {
                     move_times = 0;
-                    for (int i = 0; i <  plant_a->count; ++i) {
-                        Plant temp = plant_a->items[i];
-                        if (plant_a->items[i].x < player.x) temp.x++;
-                        if (plant_a->items[i].y < player.y) temp.y++;
-                        if (plant_a->items[i].x > player.x) temp.x--;
-                        if (plant_a->items[i].y > player.y) temp.y--;
+                    for (int i = 0; i <  monster_a->count; ++i) {
+                        Monster temp = monster_a->items[i];
+                        if (monster_a->items[i].x < player.x) temp.x++;
+                        if (monster_a->items[i].y < player.y) temp.y++;
+                        if (monster_a->items[i].x > player.x) temp.x--;
+                        if (monster_a->items[i].y > player.y) temp.y--;
                         int collide_b = 0;
-                        for (int i2 = 0; i2 <  plant_a->count; ++i2) {
+                        for (int i2 = 0; i2 <  monster_a->count; ++i2) {
                             if (i2 == i) continue;
                             if (    player.x == temp.x && 
                                     player.y == temp.y ) {
                                 collide_b = 1;
                                 break;
                             }
-                            if (    plant_a->items[i2].x == temp.x && 
-                                    plant_a->items[i2].y == temp.y ) {
+                            if (    monster_a->items[i2].x == temp.x && 
+                                    monster_a->items[i2].y == temp.y ) {
                                 collide_b = 1;
                                 break;
                             }
                         }
                         if (collide_b == 0) { 
-                            plant_a->items[i] = temp;
+                            monster_a->items[i] = temp;
                         }
                     } // for
                 } // if
@@ -299,14 +592,14 @@ void game() {
                 {
                      DrawCircleGradient(GetScreenWidth()/2+ Tile_Size /3, GetScreenHeight()/2, Tile_Size*.5f, RED, BLACK);
                      //DrawCircle(GetScreenWidth()/2+ Tile_Size /3, GetScreenHeight()/2, Tile_Size*.5f, RED, BLACK);
-                    for (int i = 0; i <  plant_a->count; ++i) {
-                        if ( plant_a->items[i].x >= player.x_dest-1 && 
-                             plant_a->items[i].x <= player.x_dest+1 &&
-                             plant_a->items[i].y >= player.y_dest-1 && 
-                             plant_a->items[i].y <= player.y_dest+1 
+                    for (int i = 0; i <  monster_a->count; ++i) {
+                        if ( monster_a->items[i].x >= player.x_dest-1 && 
+                             monster_a->items[i].x <= player.x_dest+1 &&
+                             monster_a->items[i].y >= player.y_dest-1 && 
+                             monster_a->items[i].y <= player.y_dest+1 
                            ) {
-                            --plant_a->count;
-                            plant_a->items[i] = plant_a->items[plant_a->count];
+                            --monster_a->count;
+                            monster_a->items[i] = monster_a->items[monster_a->count];
 
                         }
                     }
@@ -316,16 +609,16 @@ void game() {
             /*
             if (!player.moving_y && !player.moving_x && actionPressed()) {
                 // @Todo: 
-                plant_a->items[plant_a->count].x = player.x;
-                plant_a->items[plant_a->count].y = player.y;
-                plant_a->items[plant_a->count].color = GREEN;
-                ++plant_a->count;
-                assert(plant_a->count < Plant_Max);
+                monster_a->items[monster_a->count].x = player.x;
+                monster_a->items[monster_a->count].y = player.y;
+                monster_a->items[monster_a->count].color = GREEN;
+                ++monster_a->count;
+                assert(monster_a->count < Monster_Max);
                 // :write plants.data
                     FILE *f = fopen("assets/plants.data", "w");
                     assert(f != NULL);
-                    //print_plant_a("Before Write", plant_a);
-                    fwrite(plant_a, sizeof (Plant_a), 1, f);
+                    //print_monster_a("Before Write", monster_a);
+                    fwrite(monster_a, sizeof (Monster_a), 1, f);
                     fclose(f);
             }
             if (!player.moving_y && !player.moving_x && waterPressed()) {
@@ -336,7 +629,7 @@ void game() {
                 // :write plants.data
                 FILE *f = fopen("assets/water.data", "w");
                 assert(f != NULL);
-                //print_plant_a("Before Write", plant_a);
+                //print_monster_a("Before Write", monster_a);
                 fwrite(water_a, sizeof (Water_a), 1, f);
                 fclose(f);
             }
@@ -427,12 +720,18 @@ void game() {
                     for (int i = 0; i < water_a->count; ++i) {
                         DrawRectangle(water_a->items[i].x * 64, water_a->items[i].y * 64, 64, 64, Fade(BLUE, 0.75f));
                     }
+<<<<<<< HEAD
                     //   :draw plant 
 */
 
 /*
                     for (int i = 0; i < plant_a->count; ++i) {
                         DrawTextureEx(plant_tex, (Vector2) { plant_a->items[i].x * 64, plant_a->items[i].y * Tile_Size - Tile_Size / 4  }, 0, 4, BLACK);
+=======
+                    //   :draw monster
+                    for (int i = 0; i < monster_a->count; ++i) {
+                        DrawTextureEx(monster_tex, (Vector2) { monster_a->items[i].x * 64, monster_a->items[i].y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
+>>>>>>> 209040fcbcc4696bb8b4271d5d15d66bc76e8f25
                     }
 */
 
@@ -525,10 +824,11 @@ void game() {
                 DrawTexture(noise_tex, 0, 0, Fade( RED, 0.5f));
             }
 #endif
+#if 0
             {
-                for (int i = 0; i <  plant_a->count; ++i) {
-                    if (plant_a->items[i].x == player.x_dest && 
-                        plant_a->items[i].y == player.y_dest ){
+                for (int i = 0; i <  monster_a->count; ++i) {
+                    if (monster_a->items[i].x == player.x_dest && 
+                        monster_a->items[i].y == player.y_dest ){
                         player_action = DEAD;
                             DrawText("Samari slice that like button!",
                                     250, // xpos
@@ -540,6 +840,7 @@ void game() {
                     }
                 }
             }
+#endif
             static int time_hour = 1;
                 // brothers that play game at, for people to play games at!
                 // two brother that create games for other people 
