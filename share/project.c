@@ -5,6 +5,7 @@
 #define Water_Max 10000
 #include <math.h>
 #include <string.h>
+#include "/opt/raylib/src/external/stb_image_write.h"
 
 
 typedef struct {
@@ -89,7 +90,6 @@ int int_from_float(float f) {
 void game() {
     //Vector2 screen = {1280, 446};
     Vector2 screen = {1280, 760};
-    //Vector2 screen = {720, 480};
 
     InitWindow(screen.x, screen.y, "Vibrant");
     SetTargetFPS(59);
@@ -177,25 +177,20 @@ void game() {
                         23, // fontsize
                         WHITE
                         );
+                cursor.y += 80;
+                DrawText("easter egg to be found press n key and go into the darkness to find it...",
+                        cursor.x, // xpos
+                        cursor.y, // ypos
+                        23, // fontsize
+                        WHITE
+                        );
             EndDrawing();
         }
         if (DRAW == mode) {
             static Vector2 cursor;
 #define DefaultColor BLANK 
 #define ColorMax 9
-            static Color *colors;
-            if (!colors){
-                colors = malloc(sizeof(Color) * ColorMax);
-                colors[0] = DefaultColor;
-                colors[1] = BLUE;
-                colors[2] = RED;
-                colors[3] = GREEN;
-                colors[4] = ORANGE;
-                colors[5] = WHITE;
-                colors[6] = GRAY;
-                colors[7] = PURPLE;
-                colors[8] = VIOLET;
-            }
+            static Color colors[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
             // :load colors
             static int colors_loaded = 0;
             if (!colors_loaded) {
@@ -376,7 +371,7 @@ void game() {
             EndDrawing();
         }
         // :character selection
-        // :play
+        // :play mode
         if (PLAY == mode) {
             static int init = 0;
             static int noclip = 0;
@@ -406,7 +401,6 @@ void game() {
                 // :read ground.data
                 {
                     FILE *f = fopen("assets/ground.data", "r");
-			assert(f);
                     if (f != NULL) {
                         long int f_len;
                         fseek(f, 0, SEEK_END);
@@ -430,7 +424,7 @@ void game() {
                         assert(f_len <= sizeof (Monster_a));
                         fseek(f, 0, SEEK_SET);
                         fread((void *)monster_a, f_len, 1, f);
-                        //print_monster_a("After Read", monster_a);
+                        print_monster_a("After Read", monster_a);
                         fclose(f);
                     }
                     else {
@@ -459,6 +453,12 @@ void game() {
             if (IsKeyPressed(KEY_N)) {
                 noclip = !noclip;
             }
+            if (IsKeyPressed(KEY_EQUAL)) {
+                camera.zoom += 1;
+            }
+            if (IsKeyPressed(KEY_MINUS)) {
+                camera.zoom -= 1;
+            }
 
             if(IsKeyDown(KEY_F)) {
                 int floor_detected = 0;
@@ -486,7 +486,7 @@ void game() {
                 ++monster_a->count;
                 FILE * f = fopen("assets/monster.data", "w");
                 if (f != NULL) {
-                    fwrite((void *)monster_a, sizeof (Ground_a), 1, f);
+                    fwrite((void *)monster_a, sizeof (Monster_a), 1, f);
                     fclose(f);
                 }
             }
@@ -523,6 +523,8 @@ void game() {
             }
 
             // @Hack: this should be later
+            BeginDrawing();
+                ClearBackground(BLACK);
                 //ClearBackground(WHITE);
                 // :fade in
                 static float fade_cos;
@@ -706,8 +708,6 @@ void game() {
             }
 
 
-            BeginDrawing();
-                ClearBackground(BLACK);
             camera.offset.x     = screen.x/2 - 32 + -(player.x_pixel * camera.zoom);
             camera.offset.y     = screen.y/2 - 32 + -(player.y_pixel * camera.zoom);
             if (actionPressed()) {
@@ -718,6 +718,14 @@ void game() {
                     // :ground
                     for (int i = 0; i < ground_a->count; ++i) {
                         DrawTextureEx(ground_tex, (Vector2) {ground_a->items[i].x * Tile_Size, ground_a->items[i].y * Tile_Size}, 0, 4, WHITE);
+                    }
+                    //   :draw water
+                    for (int i = 0; i < water_a->count; ++i) {
+                        DrawRectangle(water_a->items[i].x * 64, water_a->items[i].y * 64, 64, 64, Fade(BLUE, 0.75f));
+                    }
+                    //   :draw monster
+                    for (int i = 0; i < monster_a->count; ++i) {
+                        DrawTextureEx(monster_tex, (Vector2) { monster_a->items[i].x * 64, monster_a->items[i].y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
                     }
 
                     if (player_action != DEAD && frame_passed > 10) {
@@ -747,7 +755,6 @@ void game() {
                 EndMode2D();
                     // :flashlight
 
-/*
                     if (player_action != DEAD && flashlight_on){
                         float half = GetScreenWidth()/2;
 
@@ -758,8 +765,7 @@ void game() {
                         float adjacent = midpoint.x - mouse.x;
                         float opposite = midpoint.y - mouse.y; 
                         float alpha_radian = atan(opposite/ adjacent);  
-                        //float beta_radian = alpha_radian - M_PI / 2;
-                        //float beta_radian = alpha_radian - M_PI / 2;
+                        float beta_radian = alpha_radian - M_PI / 2;
                         int cursor_y = 0;
                         int line_height = 20;
 
@@ -791,9 +797,10 @@ void game() {
                         DrawPolyEx(points, 3, Fade(RED,1.0));
                         //DrawCircleGradient(mouse.x, mouse.y, radius, Fade(RED, fade_cos), Fade(BLACK, fade_cos));
                         //DrawCircle(mouse.x, mouse.y, radius, Fade(RED, fade_cos));
+                        /*
+                            */
 
                     }
-*/
                 // :noise
 #if false
             {
@@ -840,7 +847,6 @@ void game() {
                         Fade(WHITE, 0.5-fade_cos) //textColor
                         );
                         */
-DrawFPS(10,10);
             EndDrawing();
         }
     }//while
