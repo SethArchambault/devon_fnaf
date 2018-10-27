@@ -200,11 +200,14 @@ void game() {
 #define DefaultColor BLANK 
 #define ColorMax 9
             static Color colors[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
-            // :load colors
             static int colors_loaded = 0;
+            static int current_monster = 0;
             if (!colors_loaded) {
                 colors_loaded = 1;
-                    FILE *f = fopen("assets/color_set.data", "r");
+            // :load colors
+                    char filename[100];
+                    sprintf(filename, "assets/color_set%d.data", current_monster);
+                    FILE *f = fopen(filename, "r");
                     if (f != NULL) {
                         printf("loaded colors\n");
                         long int f_len;
@@ -222,7 +225,6 @@ void game() {
 #define CanvasW 16
 #define CanvasSize CanvasW   * CanvasW
 
-                static int current_monster = 0;
                 if (!canvas) { 
                     canvas = calloc(CanvasSize+1,1);
                     // :load canvas
@@ -249,6 +251,7 @@ void game() {
                 static Color *pixels; 
                 if (!pixels) pixels= (Color *)malloc(CanvasW*CanvasW*sizeof(Color));
                 int key_pressed = GetKeyPressed();
+                // :press 1-10
                 if (key_pressed >= 48 && key_pressed <= 57) {
                     // :save monster
                     {
@@ -260,7 +263,31 @@ void game() {
                             fclose(f);
                         }
                     }
+                    // :save colors
+                    {
+                        char filename[100];
+                        sprintf(filename, "assets/color_set%d.data", current_monster);
+                        FILE * f = fopen(filename, "w");
+                        if (f != NULL) {
+                            fwrite((void *)colors, ColorMax, 1, f);
+                            fclose(f);
+                        }
+                    }
                     current_monster = key_pressed-48;
+                    // :load colors
+                    char filename[100];
+                    sprintf(filename, "assets/color_set%d.data", current_monster);
+                    FILE *f = fopen(filename, "r");
+                    if (f != NULL) {
+                        printf("loaded colors\n");
+                        long int f_len;
+                        fseek(f, 0, SEEK_END);
+                        f_len = ftell(f);
+                        assert(f_len <= ColorMax * sizeof (Color));
+                        fseek(f, 0, SEEK_SET);
+                        fread((void *)colors, f_len, 1, f);
+                        fclose(f);
+                    }
                     printf("current_monster %d\n", current_monster);
                     // @Todo: compress this
                     // :load canvas
@@ -288,7 +315,9 @@ void game() {
                     stbi_write_png(filename, CanvasW, CanvasW, 4, pixels,CanvasW*4); 
                     // :save colors
                     {
-                        FILE * f = fopen("assets/color_set.data", "w");
+                        char filename[100];
+                        sprintf(filename, "assets/color_set%d.data", current_monster);
+                        FILE * f = fopen(filename, "w");
                         if (f != NULL) {
                             fwrite((void *)colors, ColorMax, 1, f);
                             fclose(f);
@@ -422,7 +451,7 @@ void game() {
         // :play mode
         if (PLAY == mode) {
             static int init = 0;
-            static int noclip = 0;
+            static int noclip = 1;
             static Player player;
             static Monster_a *monster_a;
             static Water_a *water_a;
@@ -777,9 +806,53 @@ void game() {
                     for (int i = 0; i < water_a->count; ++i) {
                         DrawRectangle(water_a->items[i].x * 64, water_a->items[i].y * 64, 64, 64, Fade(BLUE, 0.75f));
                     }
-                    //   :draw monster
+                        // :move monsters
+                    static enemy_timer = 0;
+                    static Monster temp_monster;
+                    ++enemy_timer;
+                    int enemy_speed = 50;
+                    if (enemy_timer > enemy_speed && !noclip) {
+                        for (int i = 0; i < monster_a->count; ++i) {
+                            Monster * monster = &monster_a->items[i];
+                            memcpy(&temp_monster,monster, sizeof(Monster));
+                            enemy_timer = 0;
+                            if (monster->x > player.x) {
+                                monster->x--;
+                            }
+                            if (monster->x < player.x) {
+                                monster->x++;
+                            }
+                            if (monster->y < player.y) {
+                                monster->y++;
+                            }
+                            if (monster->y > player.y) {
+                                monster->y--;
+                            }
+                            for (int n = 0; n < monster_a->count; ++n) {
+                                Monster * monster2 = &monster_a->items[n];
+                                if (n == i) continue;
+                                if (monster2->x == monster->x && monster->y == monster2->y) {
+                                    memcpy(monster, &temp_monster, sizeof(Monster));
+                                    break;
+                                }
+
+                            }
+                            int collision = 1;
+                            for(int w = 0; w < ground_a->count; ++w) {
+                                if (ground_a->items[w].x == monster->x && ground_a->items[w].y == monster->y) {
+                                    collision = 0;
+                                    break;
+                                }
+                            }
+                            if (collision) {
+                                memcpy(monster, &temp_monster, sizeof(Monster));
+                            }
+                        }
+                    }
+                    // :draw monster
                     for (int i = 0; i < monster_a->count; ++i) {
-                        DrawTextureEx(monster_tex_a[monster_a->items[i].type], (Vector2) { monster_a->items[i].x * 64, monster_a->items[i].y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
+                        Monster * monster = &monster_a->items[i];
+                        DrawTextureEx(monster_tex_a[monster->type], (Vector2) { monster->x * 64, monster->y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
                     }
 
                     if (player_action != DEAD && frame_passed > 10) {
