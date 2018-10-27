@@ -199,7 +199,11 @@ void game() {
             static Vector2 cursor;
 #define DefaultColor BLANK 
 #define ColorMax 9
-            static Color colors[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
+            static Color colors[ColorMax] = { 0 };
+            if (!colors) {
+                Color colors_t[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
+                memcpy(colors, colors_t, sizeof(Color) *  ColorMax);
+            }
             static int colors_loaded = 0;
             static int current_monster = 0;
             if (!colors_loaded) {
@@ -807,7 +811,7 @@ void game() {
                         DrawRectangle(water_a->items[i].x * 64, water_a->items[i].y * 64, 64, 64, Fade(BLUE, 0.75f));
                     }
                         // :move monsters
-                    static enemy_timer = 0;
+                    static int enemy_timer = 0;
                     static Monster temp_monster;
                     ++enemy_timer;
                     int enemy_speed = 50;
@@ -852,6 +856,15 @@ void game() {
                     // :draw monster
                     for (int i = 0; i < monster_a->count; ++i) {
                         Monster * monster = &monster_a->items[i];
+                        if(enemy_timer > 30) {
+                            DrawRectangle(monster->x*64 - 64, monster->y * 64 -64, 240,32, (Color) {250,0,0,255});
+                            DrawText("Would you like a glass of shut up now?",
+                                monster->x * 64 - 54, // xpos
+                                monster->y * 64 - 52,
+                                12, // fontsize
+                                WHITE
+                            );
+                        }
                         DrawTextureEx(monster_tex_a[monster->type], (Vector2) { monster->x * 64, monster->y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
                     }
 
@@ -882,6 +895,7 @@ void game() {
                 EndMode2D();
                     // :flashlight
 
+                /*
                     if (player_action != DEAD && flashlight_on){
                         float half = GetScreenWidth()/2;
 
@@ -924,10 +938,9 @@ void game() {
                         DrawPolyEx(points, 3, Fade(RED,1.0));
                         //DrawCircleGradient(mouse.x, mouse.y, radius, Fade(RED, fade_cos), Fade(BLACK, fade_cos));
                         //DrawCircle(mouse.x, mouse.y, radius, Fade(RED, fade_cos));
-                        /*
-                            */
 
                     }
+        */
                 // :noise
 #if false
             {
