@@ -1,6 +1,6 @@
 #define Role_Max 6
 #define Tile_Size 64
-#define Monster_Max 910000
+#define Monster_Max 10
 #define Ground_Max 10000
 #define Water_Max 10000
 #include <math.h>
@@ -24,6 +24,7 @@ typedef struct {
     int x;
     int y;
     Color color;
+    int type; // 0-9
 } Monster;
 
 typedef struct {
@@ -95,7 +96,15 @@ void game() {
     SetTargetFPS(59);
 
     Texture2D ground_tex  = LoadTexture("assets/tile_floor.png");
-    Texture2D monster_tex   = LoadTexture("assets/monster.png");
+#define monster_max 10
+    Texture2D monster_tex_a[monster_max];
+    for(int i = 0; i < monster_max;++i) {
+        char filename[100];
+        sprintf(filename, "assets/monster%d.png", i);
+
+        monster_tex_a[i] = LoadTexture(filename);
+    }
+
     Texture2D person_stand_tex  = LoadTexture("assets/devon_standing.png");
     Texture2D person_walk_tex  = LoadTexture("assets/devon_walking.png");
 
@@ -213,11 +222,14 @@ void game() {
 #define CanvasW 16
 #define CanvasSize CanvasW   * CanvasW
 
+                static int current_monster = 0;
                 if (!canvas) { 
                     canvas = calloc(CanvasSize+1,1);
                     // :load canvas
                     {
-                        FILE *f = fopen("assets/canvas.data", "r");
+                        char filename[100];
+                        sprintf(filename,"assets/monster%d.data", current_monster); 
+                        FILE *f = fopen(filename, "r");
                         if (f != NULL) {
                             long int f_len;
                             fseek(f, 0, SEEK_END);
@@ -236,9 +248,44 @@ void game() {
                         }
                 static Color *pixels; 
                 if (!pixels) pixels= (Color *)malloc(CanvasW*CanvasW*sizeof(Color));
+                int key_pressed = GetKeyPressed();
+                if (key_pressed >= 48 && key_pressed <= 57) {
+                    // :save monster
+                    {
+                        char filename[100];
+                        sprintf(filename,"assets/monster%d.data", current_monster); 
+                        FILE * f = fopen(filename, "w");
+                        if (f != NULL) {
+                            fwrite((void *)canvas, CanvasSize, 1, f);
+                            fclose(f);
+                        }
+                    }
+                    current_monster = key_pressed-48;
+                    printf("current_monster %d\n", current_monster);
+                    // @Todo: compress this
+                    // :load canvas
+                    {
+                        char filename[100];
+                        sprintf(filename,"assets/monster%d.data", current_monster); 
+                        FILE *f = fopen(filename, "r");
+                        if (f != NULL) {
+                            long int f_len;
+                            fseek(f, 0, SEEK_END);
+                            f_len = ftell(f);
+                            assert(f_len <= CanvasSize);
+                            fseek(f, 0, SEEK_SET);
+                            fread((void *)canvas, f_len, 1, f);
+                            fclose(f);
+                        }
+                    }
+                }
+                
                 if (IsKeyPressed(KEY_S)) {
                     PixelsFromCanvas;
-                    stbi_write_png("assets/monster.png", CanvasW, CanvasW, 4, pixels,CanvasW*4); 
+                    char filename[100];
+                    sprintf(filename, "assets/monster%d.png", current_monster);
+
+                    stbi_write_png(filename, CanvasW, CanvasW, 4, pixels,CanvasW*4); 
                     // :save colors
                     {
                         FILE * f = fopen("assets/color_set.data", "w");
@@ -249,7 +296,9 @@ void game() {
                     }
                     // :save canvas
                     {
-                        FILE * f = fopen("assets/canvas.data", "w");
+                        char filename[100];
+                        sprintf(filename,"assets/monster%d.data", current_monster); 
+                        FILE * f = fopen(filename, "w");
                         if (f != NULL) {
                             fwrite((void *)canvas, CanvasSize, 1, f);
                             fclose(f);
@@ -263,7 +312,7 @@ void game() {
                                     pixels[y * width + x] = colors[canvas[y* width+x]];
                                 }
                             }
-                            UpdateTexture(monster_tex, pixels);
+                            UpdateTexture(monster_tex_a[current_monster], pixels);
                         }
                 }
                if (cursor.x >= 0) {
@@ -295,7 +344,7 @@ void game() {
                                     pixels[y * width + x] = colors[canvas[y* width+x]];
                                 }
                             }
-                            UpdateTexture(monster_tex, pixels);
+                            UpdateTexture(monster_tex_a[0], pixels);
                         }
                     }
                }
@@ -352,7 +401,7 @@ void game() {
                 }
                 // :minimap
                 for (int i = 0; i < CanvasSize;++i) {
-                    DrawRectangle(CanvasOffset + 32 + (i % CanvasW)*2,CanvasOffset + (i / CanvasW)*2, 3, 3, colors[canvas[i]]);
+                    DrawRectangle(current_monster * 32+ CanvasOffset + 32 + (i % CanvasW)*2,CanvasOffset + (i / CanvasW)*2, 3, 3, colors[canvas[i]]);
                 }
 
                 // :colorpallet
@@ -361,7 +410,6 @@ void game() {
                     DrawRectangle(PixelFromCursorX(0), PixelFromCursorX(i+1), CursorPixelW, CursorPixelW, colors[i]);
                 }
 
-                // :canvas
                 DrawRectangleLines(PixelFromCursorX(1), PixelFromCursorX(1), CanvasW*CursorPixelW, CanvasW*CursorPixelW, Fade(WHITE,0.3));
                 // :cursor
                 if (cursor.y > 0) {
@@ -480,14 +528,20 @@ void game() {
                     }
                 }
             }
-            if(IsKeyPressed(KEY_M)) {
-                monster_a->items[monster_a->count].x = player.x;
-                monster_a->items[monster_a->count].y = player.y;
-                ++monster_a->count;
-                FILE * f = fopen("assets/monster.data", "w");
-                if (f != NULL) {
-                    fwrite((void *)monster_a, sizeof (Monster_a), 1, f);
-                    fclose(f);
+
+            // :place monster
+            int key_pressed = GetKeyPressed();
+            if (key_pressed >= 48 && key_pressed <= 57) {
+                if (monster_a->count < Monster_Max) {
+                    monster_a->items[monster_a->count].x = player.x;
+                    monster_a->items[monster_a->count].y = player.y;
+                    monster_a->items[monster_a->count].type = key_pressed-48; // 0-9
+                    ++monster_a->count;
+                    FILE * f = fopen("assets/monster.data", "w");
+                    if (f != NULL) {
+                        fwrite((void *)monster_a, sizeof (Monster_a), 1, f);
+                        fclose(f);
+                    }
                 }
             }
             if(IsKeyDown(KEY_C)) {
@@ -725,7 +779,7 @@ void game() {
                     }
                     //   :draw monster
                     for (int i = 0; i < monster_a->count; ++i) {
-                        DrawTextureEx(monster_tex, (Vector2) { monster_a->items[i].x * 64, monster_a->items[i].y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
+                        DrawTextureEx(monster_tex_a[monster_a->items[i].type], (Vector2) { monster_a->items[i].x * 64, monster_a->items[i].y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
                     }
 
                     if (player_action != DEAD && frame_passed > 10) {
