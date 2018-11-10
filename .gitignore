@@ -1,3 +1,4 @@
 linux/obj/linux_platform.o
+linux/linux_platform
 osx/osx_platfrom.o
 .DS_Store
