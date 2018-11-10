@@ -41,6 +41,7 @@ typedef struct {
     Monster items[Monster_Max];
     int count;
 } Monster_a;
+                            void MonsterSpeechBubble(monster, "Would you like a glass of shut up now?");
 
 void print_monster_a(char msg[30],Monster_a *monster_a) {
     printf("\n%s monster_a.count %d \n", msg, monster_a->count);
@@ -89,12 +90,9 @@ int int_from_float(float f) {
 }
 
 void game() {
-    //Vector2 screen = {1280, 446};
     Vector2 screen = {1280, 760};
-
     InitWindow(screen.x, screen.y, "Vibrant");
     SetTargetFPS(59);
-
     Texture2D ground_tex  = LoadTexture("assets/tile_floor.png");
 #define monster_max 10
     Texture2D monster_tex_a[monster_max];
@@ -759,6 +757,7 @@ void game() {
                     for (int i = 0; i < monster_a->count; ++i) {
                         Monster * monster = &monster_a->items[i];
                         if(enemy_timer > 30) {
+                            MonsterSpeechBubble(monster, "Would you like a glass of shut up now?");
                             DrawRectangle(monster->x*64 - 64, monster->y * 64 -64, 240,32, (Color) {250,0,0,255});
                             DrawText("Would you like a glass of shut up now?",
                                 monster->x * 64 - 54, // xpos
