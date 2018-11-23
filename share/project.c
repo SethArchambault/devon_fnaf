@@ -41,6 +41,7 @@ typedef struct {
     Monster items[Monster_Max];
     int count;
 } Monster_a;
+                            void MonsterSpeechBubble(monster, "Would you like a glass of shut up now?");
 
 void print_monster_a(char msg[30],Monster_a *monster_a) {
     printf("\n%s monster_a.count %d \n", msg, monster_a->count);
@@ -89,12 +90,9 @@ int int_from_float(float f) {
 }
 
 void game() {
-    //Vector2 screen = {1280, 446};
     Vector2 screen = {1280, 760};
-
     InitWindow(screen.x, screen.y, "Vibrant");
     SetTargetFPS(59);
-
     Texture2D ground_tex  = LoadTexture("assets/tile_floor.png");
 #define monster_max 10
     Texture2D monster_tex_a[monster_max];
@@ -199,7 +197,11 @@ void game() {
             static Vector2 cursor;
 #define DefaultColor BLANK 
 #define ColorMax 9
-            static Color colors[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
+            static Color colors[ColorMax] = { 0 };
+            if (!colors) {
+                Color colors_t[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
+                memcpy(colors, colors_t, sizeof(Color) *  ColorMax);
+            }
             static int colors_loaded = 0;
             static int current_monster = 0;
             if (!colors_loaded) {
@@ -709,7 +711,7 @@ void game() {
                         DrawRectangle(water_a->items[i].x * 64, water_a->items[i].y * 64, 64, 64, Fade(BLUE, 0.75f));
                     }
                         // :move monsters
-                    static enemy_timer = 0;
+                    static int enemy_timer = 0;
                     static Monster temp_monster;
                     ++enemy_timer;
                     int enemy_speed = 50;
@@ -754,6 +756,16 @@ void game() {
                     // :draw monster
                     for (int i = 0; i < monster_a->count; ++i) {
                         Monster * monster = &monster_a->items[i];
+                        if(enemy_timer > 30) {
+                            MonsterSpeechBubble(monster, "Would you like a glass of shut up now?");
+                            DrawRectangle(monster->x*64 - 64, monster->y * 64 -64, 240,32, (Color) {250,0,0,255});
+                            DrawText("Would you like a glass of shut up now?",
+                                monster->x * 64 - 54, // xpos
+                                monster->y * 64 - 52,
+                                12, // fontsize
+                                WHITE
+                            );
+                        }
                         DrawTextureEx(monster_tex_a[monster->type], (Vector2) { monster->x * 64, monster->y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
                     }
 
