@@ -1,11 +1,12 @@
 #define Role_Max 6
 #define Tile_Size 64
-#define Monster_Max 10
+#define Monster_Max 100
 #define Ground_Max 10000
 #define Water_Max 10000
 #include <math.h>
 #include <string.h>
 #include "/opt/raylib/src/external/stb_image_write.h"
+#include <time.h>  // rand
 
 
 typedef struct {
@@ -62,6 +63,10 @@ Vector2 v2_pixel_from_v2_coord(Vector2 coord) {
     return coord;
 }
 
+typedef enum {
+    UP, RIGHT, DOWN, LEFT
+} Direction;
+
 typedef struct {
     int x;
     int y;
@@ -74,6 +79,7 @@ typedef struct {
     float distance;
     bool moving_x;
     bool moving_y;
+    Direction direction;
 } Player;
 
 
@@ -90,6 +96,10 @@ int int_from_float(float f) {
 
 void game() {
     //Vector2 screen = {1280, 446};
+    // :init
+   
+    srand(time(NULL));
+   
     Vector2 screen = {1280, 760};
 
     InitWindow(screen.x, screen.y, "Vibrant");
@@ -199,7 +209,13 @@ void game() {
             static Vector2 cursor;
 #define DefaultColor BLANK 
 #define ColorMax 9
-            static Color colors[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
+            // :colors
+            static Color * colors; 
+            if (!colors) {
+                colors = malloc(ColorMax * sizeof(Color));
+                Color colors_t[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
+                memcpy(colors, colors_t, sizeof(Color) *  ColorMax);
+            }
             static int colors_loaded = 0;
             static int current_monster = 0;
             if (!colors_loaded) {
@@ -469,6 +485,7 @@ void game() {
                 player.moving_y     = false;
                 player.y_pixel_dest = player.y_pixel;
                 player.x_pixel_dest = player.x_pixel;
+                player.direction    = DOWN;
                 camera.rotation     = 0.0f;
                 camera.zoom         = 1.5f;
                 monster_a = malloc(sizeof(Monster_a));
@@ -610,11 +627,13 @@ void game() {
             // :fade in
             static Action player_action = STAND;
             if (   up()   && !player.moving_y) {
+                player.direction = UP;
                 player.y_pixel_dest -= Tile_Size;
                 player.y_dest   -= 1;
                 player.moving_y = 1;
             }
             if ( down()   && !player.moving_y) {
+                player.direction = DOWN;
                 player.y_pixel_dest += Tile_Size;
                 player.y_dest += 1;
                 player.moving_y = 1;
@@ -633,11 +652,13 @@ void game() {
                 }
             }
             if (right()   && !player.moving_x) {
+                player.direction = RIGHT;
                 player.x_pixel_dest += Tile_Size;
                 player.x_dest   += 1;
                 player.moving_x = 1;
             }
             if ( left()   && !player.moving_x) {
+                player.direction = LEFT;
                 player.x_pixel_dest -= Tile_Size;
                 player.x_dest   -= 1;
                 player.moving_x = 1;
@@ -695,9 +716,6 @@ void game() {
 
             camera.offset.x     = screen.x/2 - 32 + -(player.x_pixel * camera.zoom);
             camera.offset.y     = screen.y/2 - 32 + -(player.y_pixel * camera.zoom);
-            if (actionPressed()) {
-                mode = 2;
-            }
             // :draw
                 BeginMode2D(camera); // All that happens in here will move with the camera
                     // :ground
@@ -708,27 +726,110 @@ void game() {
                     for (int i = 0; i < water_a->count; ++i) {
                         DrawRectangle(water_a->items[i].x * 64, water_a->items[i].y * 64, 64, 64, Fade(BLUE, 0.75f));
                     }
+            // :spacebar
+            // :action
+            // :shoot
+#define MonsterDead 9
+            if (actionPressed()) {
+                if (player.direction == RIGHT) {
+                    DrawRectangle(player.x*64, player.y * 64, 1000,64, (Color) {248,57,53,255});
+                    for (int i = 0; i < 10; ++i) {
+                        for (int mi = 0; mi < monster_a->count; ++mi) {
+                            Monster * monster = &monster_a->items[mi];
+                            if (monster->x == player.x + i && monster->y == player.y) {
+                                monster->type = MonsterDead;
+                                /*
+                                monster_a->items[mi] = monster_a->items[monster_a->count - 1];
+                                --monster_a->count;
+                                */
+                            goto ShootingDone;
+                            }
+                        }
+                    }
+                }
+                if (player.direction == LEFT) {
+                    DrawRectangle(player.x*64 - 1000, player.y * 64, 1000,64, (Color) {248,57,53,255});
+                    for (int i = 0; i < 10; ++i) {
+                        for (int mi = 0; mi < monster_a->count; ++mi) {
+                            Monster * monster = &monster_a->items[mi];
+                            if (monster->x == player.x - i && monster->y == player.y) {
+                                monster->type = MonsterDead;
+                                /*
+                                monster_a->items[mi] = monster_a->items[monster_a->count - 1];
+                                --monster_a->count;
+                                */
+                                goto ShootingDone;
+                            }
+                        }
+
+                    }
+                }
+                if (player.direction == UP) {
+                    DrawRectangle(player.x*64, player.y * 64 - 1000, 64, 1000, (Color) {248,57,53,255});
+                    for (int i = 0; i < 10; ++i) {
+                        for (int mi = 0; mi < monster_a->count; ++mi) {
+                            Monster * monster = &monster_a->items[mi];
+                            if (monster->y == player.y - i && monster->x == player.x) {
+                                monster->type = MonsterDead;
+                                /*
+                                monster_a->items[mi] = monster_a->items[monster_a->count - 1];
+                                --monster_a->count;
+                                */
+                                goto ShootingDone;
+                            }
+                        }
+
+                    }
+                }
+                if (player.direction == DOWN) {
+                    DrawRectangle(player.x*64, player.y * 64, 64, 1000, (Color) {248,57,53,255});
+                    for (int i = 0; i < 10; ++i) {
+                        for (int mi = 0; mi < monster_a->count; ++mi) {
+                            Monster * monster = &monster_a->items[mi];
+                            if (monster->y == player.y + i && monster->x == player.x) {
+                                monster->type = MonsterDead;
+                                /*
+                                monster_a->items[mi] = monster_a->items[monster_a->count - 1];
+                                --monster_a->count;
+                                */
+                                goto ShootingDone;
+                            }
+                        }
+
+                    }
+                }
+
+            }
+            ShootingDone:;
                         // :move monsters
-                    static enemy_timer = 0;
+            static int enemy_timer = 0;
                     static Monster temp_monster;
                     ++enemy_timer;
-                    int enemy_speed = 50;
+                    int enemy_speed = 100;
+#define SethIndex 2
+#define DoorIndex 8
                     if (enemy_timer > enemy_speed && !noclip) {
                         for (int i = 0; i < monster_a->count; ++i) {
                             Monster * monster = &monster_a->items[i];
                             memcpy(&temp_monster,monster, sizeof(Monster));
                             enemy_timer = 0;
-                            if (monster->x > player.x) {
-                                monster->x--;
-                            }
-                            if (monster->x < player.x) {
-                                monster->x++;
-                            }
-                            if (monster->y < player.y) {
-                                monster->y++;
-                            }
-                            if (monster->y > player.y) {
-                                monster->y--;
+                            if (monster->type == MonsterDead) { 
+                            }else if (monster->type == SethIndex) { 
+                                monster->x = (int)player.x  - 5 + (rand() % 10);
+                                monster->y = (int)player.y  - 3 + (rand() % 6);
+                            } else {
+                                if (monster->x > player.x) {
+                                    monster->x--;
+                                }
+                                if (monster->x < player.x) {
+                                    monster->x++;
+                                }
+                                if (monster->y < player.y) {
+                                    monster->y++;
+                                }
+                                if (monster->y > player.y) {
+                                    monster->y--;
+                                }
                             }
                             for (int n = 0; n < monster_a->count; ++n) {
                                 Monster * monster2 = &monster_a->items[n];
@@ -754,6 +855,25 @@ void game() {
                     // :draw monster
                     for (int i = 0; i < monster_a->count; ++i) {
                         Monster * monster = &monster_a->items[i];
+                        if(enemy_timer > 30 && monster->type == SethIndex) {
+                            DrawRectangle(monster->x*64 - 64, monster->y * 64 -64, 260,32, (Color) {37,75,165,255});
+                            DrawText("Would you like a glass of SHUT UP NOW?",
+                                monster->x * 64 - 54, // xpos
+                                monster->y * 64 - 52,
+                                12, // fontsize
+                                WHITE
+                            );
+                        }
+#define BarneyIndex 1
+                        if(monster->type == BarneyIndex) {
+                            DrawRectangle(monster->x*64 - 64, monster->y * 64 -64, 240,32, (Color) {165,37,165,255});
+                            DrawText("I love you. You love me..",
+                                monster->x * 64 - 54, // xpos
+                                monster->y * 64 - 52,
+                                12, // fontsize
+                                WHITE
+                            );
+                        }
                         DrawTextureEx(monster_tex_a[monster->type], (Vector2) { monster->x * 64, monster->y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
                     }
 
