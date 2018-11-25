@@ -62,7 +62,12 @@ typedef struct {
 typedef struct {
     Monster items[Monster_Max];
     int count;
+<<<<<<< HEAD
 } MonsterArray;
+=======
+} Monster_a;
+                            void MonsterSpeechBubble(monster, "Would you like a glass of shut up now?");
+>>>>>>> dba2e930ba0e1554b5e170d62e173c80a68d5766
 
 void print_monsterArray(char msg[30],MonsterArray *monsterArray) {
     printf("\n%s monsterArray.count %d \n", msg, monsterArray->count);
@@ -160,16 +165,22 @@ int LoadFromFormattedFilename(void * data, int size, char * string, int value) {
 }
 
 void game() {
+<<<<<<< HEAD
     //Vector2 screen = {1280, 446};
     // :init
    
     srand(time(NULL));
    
+=======
+>>>>>>> dba2e930ba0e1554b5e170d62e173c80a68d5766
     Vector2 screen = {1280, 760};
-
     InitWindow(screen.x, screen.y, "Vibrant");
     SetTargetFPS(59);
+<<<<<<< HEAD
 
+=======
+    Texture2D ground_tex  = LoadTexture("assets/tile_floor.png");
+>>>>>>> dba2e930ba0e1554b5e170d62e173c80a68d5766
 #define monster_max 10
     Texture2D monster_tex_a[monster_max];
     for(int i = 0; i < monster_max;++i) {
@@ -296,10 +307,15 @@ void game() {
             static Vector2 cursor;
 #define DefaultColor BLANK 
 #define ColorMax 9
+<<<<<<< HEAD
             // :colors
             static Color * colors; 
             if (!colors) {
                 colors = malloc(ColorMax * sizeof(Color));
+=======
+            static Color colors[ColorMax] = { 0 };
+            if (!colors) {
+>>>>>>> dba2e930ba0e1554b5e170d62e173c80a68d5766
                 Color colors_t[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
                 memcpy(colors, colors_t, sizeof(Color) *  ColorMax);
             }
@@ -792,7 +808,11 @@ void game() {
             }
             ShootingDone:;
                         // :move monsters
+<<<<<<< HEAD
             static int enemy_timer = 0;
+=======
+                    static int enemy_timer = 0;
+>>>>>>> dba2e930ba0e1554b5e170d62e173c80a68d5766
                     static Monster temp_monster;
                     ++enemy_timer;
                     int enemy_speed = 100;
@@ -843,6 +863,7 @@ void game() {
                         }
                     }
                     // :draw monster
+<<<<<<< HEAD
                     for (int monsterIndex = 0; 
                             monsterIndex < monsterArray->count; 
                             ++monsterIndex) {
@@ -860,6 +881,14 @@ void game() {
                         if(monster->type == BarneyIndex) {
                             DrawRectangle(monster->x*64 - 64, monster->y * 64 -64, 240,32, (Color) {165,37,165,255});
                             DrawText("I love you. You love me..",
+=======
+                    for (int i = 0; i < monster_a->count; ++i) {
+                        Monster * monster = &monster_a->items[i];
+                        if(enemy_timer > 30) {
+                            MonsterSpeechBubble(monster, "Would you like a glass of shut up now?");
+                            DrawRectangle(monster->x*64 - 64, monster->y * 64 -64, 240,32, (Color) {250,0,0,255});
+                            DrawText("Would you like a glass of shut up now?",
+>>>>>>> dba2e930ba0e1554b5e170d62e173c80a68d5766
                                 monster->x * 64 - 54, // xpos
                                 monster->y * 64 - 52,
                                 12, // fontsize

@@ -1,3 +1,6 @@
 linux/obj/linux_platform.o
-osx/osx_platfrom.o
-.DS_Store
+osx/osx_platform.o
+osx/platform.o
+osx/project
+osx/.DS_Store
+share/.DS_Store
