@@ -1,25 +1,46 @@
 #define Role_Max 6
 #define Tile_Size 64
 #define Monster_Max 100
-#define Ground_Max 10000
+#define Floor_Max 10000
+#define Object_Max 10000
 #define Water_Max 10000
 #include <math.h>
 #include <string.h>
 #include "/opt/raylib/src/external/stb_image_write.h"
 #include <time.h>  // rand
 
+typedef enum {
+    Wood, Tile, Concrete, BrokenTile, FloorTypeEnd
+} FloorType;
 
 typedef struct {
     int x;
     int y;
     int type;
-} Ground;
+} Floor;
+
 
 
 typedef struct {
     int x;
     int y;
 } Water;
+
+typedef enum {
+    Table, Door, Fire, ObjectTypeEnd
+} ObjectType;
+
+
+typedef struct {
+    int x;
+    int y;
+    ObjectType type;
+} Object;
+
+typedef struct {
+    Object items[Object_Max];
+    int count;
+} ObjectArray;
 
 typedef struct {
     int x;
@@ -29,9 +50,9 @@ typedef struct {
 } Monster;
 
 typedef struct {
-    Ground items[Ground_Max];
+    Floor items[Floor_Max];
     int count;
-} Ground_a;
+} FloorArray;
 
 typedef struct {
     Water items[Water_Max];
@@ -41,12 +62,12 @@ typedef struct {
 typedef struct {
     Monster items[Monster_Max];
     int count;
-} Monster_a;
+} MonsterArray;
 
-void print_monster_a(char msg[30],Monster_a *monster_a) {
-    printf("\n%s monster_a.count %d \n", msg, monster_a->count);
-    for(int i = 0; i < monster_a->count; ++i) {
-        printf("    %d x:%2d y:%2d\n", i, monster_a->items[i].x, monster_a->items[i].y);
+void print_monsterArray(char msg[30],MonsterArray *monsterArray) {
+    printf("\n%s monsterArray.count %d \n", msg, monsterArray->count);
+    for(int i = 0; i < monsterArray->count; ++i) {
+        printf("    %d x:%2d y:%2d\n", i, monsterArray->items[i].x, monsterArray->items[i].y);
     }
 }
 
@@ -94,6 +115,50 @@ int int_from_float(float f) {
     return i;
 }
 
+Vector2 Vector2PixelsFromXYCoords(int x, int y) {
+    return (Vector2){ x * Tile_Size, y * Tile_Size };
+}
+
+int SaveToFilename(void * data, int size, char * filename) {
+    char path[100] = "assets/";
+    strcat(path, filename);
+    FILE * f = fopen(path, "w");
+    if (f != NULL) {
+        fwrite(data, size, 1, f);
+        fclose(f);
+        return 1;
+    }
+    return 0;
+}
+
+int SaveToFormattedFilename(void * data, int size, char * string, int value) {
+    char filename[100];
+    sprintf(filename, string, value);
+    return SaveToFilename(data, size, filename);
+}
+
+int LoadFromFilename(void * data, int size, char * filename) {
+    char path[100] = "assets/";
+    strcat(path, filename);
+    FILE *f = fopen(path, "r");
+    if (f != NULL) {
+        long int f_len;
+        fseek(f, 0, SEEK_END);
+        f_len = ftell(f);
+        assert(f_len <= size);
+        fseek(f, 0, SEEK_SET);
+        fread(data, f_len, 1, f);
+        fclose(f);
+        return 1;
+    }
+    return 0;
+}
+int LoadFromFormattedFilename(void * data, int size, char * string, int value) { 
+    char filename[100];
+    sprintf(filename, string, value);
+    return LoadFromFilename(data, size, filename);
+}
+
 void game() {
     //Vector2 screen = {1280, 446};
     // :init
@@ -105,7 +170,6 @@ void game() {
     InitWindow(screen.x, screen.y, "Vibrant");
     SetTargetFPS(59);
 
-    Texture2D ground_tex  = LoadTexture("assets/tile_floor.png");
 #define monster_max 10
     Texture2D monster_tex_a[monster_max];
     for(int i = 0; i < monster_max;++i) {
@@ -115,11 +179,25 @@ void game() {
         monster_tex_a[i] = LoadTexture(filename);
     }
 
-    Texture2D person_stand_tex  = LoadTexture("assets/devon_standing.png");
-    Texture2D person_walk_tex  = LoadTexture("assets/devon_walking.png");
+    Texture2D person_stand_tex      = LoadTexture("assets/devon_standing.png");
+    Texture2D person_walk_tex       = LoadTexture("assets/devon_walking.png"); 
+    
+    Texture2D objectTextureArray[Object_Max];
+    objectTextureArray[Table]       = LoadTexture("assets/table.png");
+    objectTextureArray[Door]        = LoadTexture("assets/door.png");
+    objectTextureArray[Fire]        = LoadTexture("assets/fire.png");
+
+    Texture2D floorTextureArray[Floor_Max];
+    floorTextureArray[Tile]         = LoadTexture("assets/tile_floor.png");
+    floorTextureArray[Wood]         = LoadTexture("assets/wood_floor.png");
+    floorTextureArray[Concrete]     = LoadTexture("assets/concrete_floor.png");
+    floorTextureArray[BrokenTile]   = LoadTexture("assets/broken_tile_floor.png");
 
 
-
+    // :load sound
+    InitAudioDevice(); 
+    Sound monsterScreamSound = LoadSound("assets/sound/monster_scream.ogg");  
+    
     Mode mode = TITLE; 
 
     int frame_long = 0;
@@ -128,7 +206,7 @@ void game() {
     while (!WindowShouldClose()) {
         ++frame_passed;
         ++frame_long;
-        // :splash_screen
+        /* :splash_screen */
         if (TITLE == mode) {
             Vector2 cursor;
             if (IsKeyPressed(KEY_P)) {
@@ -196,6 +274,13 @@ void game() {
                         23, // fontsize
                         WHITE
                         );
+                cursor.y += 40;
+                DrawText("o = object (table, door)",
+                        cursor.x, // xpos
+                        cursor.y, // ypos
+                        23, // fontsize
+                        WHITE
+                        );
                 cursor.y += 80;
                 DrawText("easter egg to be found press n key and go into the darkness to find it...",
                         cursor.x, // xpos
@@ -205,6 +290,8 @@ void game() {
                         );
             EndDrawing();
         }
+        /* end */
+       /* :draw */ 
         if (DRAW == mode) {
             static Vector2 cursor;
 #define DefaultColor BLANK 
@@ -220,20 +307,8 @@ void game() {
             static int current_monster = 0;
             if (!colors_loaded) {
                 colors_loaded = 1;
-            // :load colors
-                    char filename[100];
-                    sprintf(filename, "assets/color_set%d.data", current_monster);
-                    FILE *f = fopen(filename, "r");
-                    if (f != NULL) {
-                        printf("loaded colors\n");
-                        long int f_len;
-                        fseek(f, 0, SEEK_END);
-                        f_len = ftell(f);
-                        assert(f_len <= ColorMax * sizeof (Color));
-                        fseek(f, 0, SEEK_SET);
-                        fread((void *)colors, f_len, 1, f);
-                        fclose(f);
-                    }
+                // :load colors
+                LoadFromFormattedFilename((void *)colors, ColorMax * sizeof (Color), "color_set%d.data", current_monster);
             }
                static int cursor_color = 0;
                 static char * canvas = {0};
@@ -243,20 +318,7 @@ void game() {
                 if (!canvas) { 
                     canvas = calloc(CanvasSize+1,1);
                     // :load canvas
-                    {
-                        char filename[100];
-                        sprintf(filename,"assets/monster%d.data", current_monster); 
-                        FILE *f = fopen(filename, "r");
-                        if (f != NULL) {
-                            long int f_len;
-                            fseek(f, 0, SEEK_END);
-                            f_len = ftell(f);
-                            assert(f_len <= CanvasSize);
-                            fseek(f, 0, SEEK_SET);
-                            fread((void *)canvas, f_len, 1, f);
-                            fclose(f);
-                        }
-                    }
+                    LoadFromFormattedFilename((void *)canvas, CanvasSize, "monster%d.data", current_monster);
                 }
 #define PixelsFromCanvas for(int y = 0; y < CanvasW; ++y) {\
                             for(int x = 0; x < CanvasW; ++x) {\
@@ -269,95 +331,35 @@ void game() {
                 // :press 1-10
                 if (key_pressed >= 48 && key_pressed <= 57) {
                     // :save monster
-                    {
-                        char filename[100];
-                        sprintf(filename,"assets/monster%d.data", current_monster); 
-                        FILE * f = fopen(filename, "w");
-                        if (f != NULL) {
-                            fwrite((void *)canvas, CanvasSize, 1, f);
-                            fclose(f);
-                        }
-                    }
+                    SaveToFormattedFilename((void *)canvas, CanvasSize, "monster%d.data", current_monster);
                     // :save colors
-                    {
-                        char filename[100];
-                        sprintf(filename, "assets/color_set%d.data", current_monster);
-                        FILE * f = fopen(filename, "w");
-                        if (f != NULL) {
-                            fwrite((void *)colors, ColorMax, 1, f);
-                            fclose(f);
-                        }
-                    }
+                    SaveToFormattedFilename((void *)colors, ColorMax * sizeof(Color), "color_set%d.data", current_monster);
                     current_monster = key_pressed-48;
                     // :load colors
-                    char filename[100];
-                    sprintf(filename, "assets/color_set%d.data", current_monster);
-                    FILE *f = fopen(filename, "r");
-                    if (f != NULL) {
-                        printf("loaded colors\n");
-                        long int f_len;
-                        fseek(f, 0, SEEK_END);
-                        f_len = ftell(f);
-                        assert(f_len <= ColorMax * sizeof (Color));
-                        fseek(f, 0, SEEK_SET);
-                        fread((void *)colors, f_len, 1, f);
-                        fclose(f);
-                    }
-                    printf("current_monster %d\n", current_monster);
-                    // @Todo: compress this
+                    LoadFromFormattedFilename((void *)colors, ColorMax * sizeof(Color), "color_set%d.data", current_monster);
                     // :load canvas
-                    {
-                        char filename[100];
-                        sprintf(filename,"assets/monster%d.data", current_monster); 
-                        FILE *f = fopen(filename, "r");
-                        if (f != NULL) {
-                            long int f_len;
-                            fseek(f, 0, SEEK_END);
-                            f_len = ftell(f);
-                            assert(f_len <= CanvasSize);
-                            fseek(f, 0, SEEK_SET);
-                            fread((void *)canvas, f_len, 1, f);
-                            fclose(f);
-                        }
-                    }
+                    LoadFromFormattedFilename((void *)canvas, CanvasSize, "monster%d.data", current_monster);
                 }
                 
                 if (IsKeyPressed(KEY_S)) {
                     PixelsFromCanvas;
                     char filename[100];
                     sprintf(filename, "assets/monster%d.png", current_monster);
-
                     stbi_write_png(filename, CanvasW, CanvasW, 4, pixels,CanvasW*4); 
                     // :save colors
-                    {
-                        char filename[100];
-                        sprintf(filename, "assets/color_set%d.data", current_monster);
-                        FILE * f = fopen(filename, "w");
-                        if (f != NULL) {
-                            fwrite((void *)colors, ColorMax, 1, f);
-                            fclose(f);
-                        }
-                    }
+                    SaveToFormattedFilename((void *)colors, ColorMax * sizeof(Color), "color_set%d.data", current_monster);
                     // :save canvas
+                    SaveToFormattedFilename((void *)canvas, CanvasSize, "monster%d.data", current_monster);
+                    // :update texture
                     {
-                        char filename[100];
-                        sprintf(filename,"assets/monster%d.data", current_monster); 
-                        FILE * f = fopen(filename, "w");
-                        if (f != NULL) {
-                            fwrite((void *)canvas, CanvasSize, 1, f);
-                            fclose(f);
-                        }
-                    }
-                        // update texture
-                        {
-                            int width = 16;
-                            for(int y = 0; y < width; ++y) {
-                                for(int x = 0; x < width; ++x) {
-                                    pixels[y * width + x] = colors[canvas[y* width+x]];
-                                }
+                        int width = 16;
+                        for(int y = 0; y < width; ++y) {
+                            for(int x = 0; x < width; ++x) {
+                                pixels[y * width + x] = colors[canvas[y* width+x]];
                             }
-                            UpdateTexture(monster_tex_a[current_monster], pixels);
                         }
+                        UpdateTexture(monster_tex_a[current_monster], pixels);
+                    }
                 }
                if (cursor.x >= 0) {
                     if (IsKeyPressed(KEY_P)) {
@@ -462,16 +464,17 @@ void game() {
                 DrawRectangleLines(PixelFromCursorX(cursor.x), PixelFromCursorX(cursor.y), CursorPixelW, CursorPixelW, GRAY);
             EndDrawing();
         }
+        /* end */
         // :character selection
         // :play mode
         if (PLAY == mode) {
             static int init = 0;
             static int noclip = 1;
             static Player player;
-            static Monster_a *monster_a;
-            static Water_a *water_a;
+            static ObjectArray *objectArray;
+            static MonsterArray *monsterArray;
             static Camera2D camera;
-            static Ground_a *ground_a;
+            static FloorArray *floorArray;
             if (init == 0) {
                 init                = 1;
                 player.x              = 1;
@@ -488,58 +491,104 @@ void game() {
                 player.direction    = DOWN;
                 camera.rotation     = 0.0f;
                 camera.zoom         = 1.5f;
-                monster_a = malloc(sizeof(Monster_a));
-                water_a = malloc(sizeof(Water_a));
-                ground_a = malloc(sizeof(Ground_a));
+                monsterArray = malloc(sizeof(MonsterArray));
+                floorArray = malloc(sizeof(FloorArray));
+                objectArray = malloc(sizeof(ObjectArray));
+                objectArray->count = 0;
                 // :read ground.data
-                {
-                    FILE *f = fopen("assets/ground.data", "r");
-                    if (f != NULL) {
-                        long int f_len;
-                        fseek(f, 0, SEEK_END);
-                        f_len = ftell(f);
-                        assert(f_len <= sizeof (Ground_a));
-                        fseek(f, 0, SEEK_SET);
-                        fread((void *)ground_a, f_len, 1, f);
-                        fclose(f);
-                    }
-                    else {
-                        monster_a->count      = 0;
-                    }
+                
+                if(!LoadFromFilename((void *)floorArray, sizeof (FloorArray), "floor.data")) {
+                    floorArray->count      = 0;
                 }
                 // :read monster.data
-                {
-                    FILE *f = fopen("assets/monster.data", "r");
-                    if (f != NULL) {
-                        long int f_len;
-                        fseek(f, 0, SEEK_END);
-                        f_len = ftell(f);
-                        assert(f_len <= sizeof (Monster_a));
-                        fseek(f, 0, SEEK_SET);
-                        fread((void *)monster_a, f_len, 1, f);
-                        print_monster_a("After Read", monster_a);
-                        fclose(f);
-                    }
-                    else {
-                        monster_a->count      = 0;
-                    }
-                }
-                FILE *f = fopen("assets/water.data", "r");
-                if (f != NULL) {
-                    long int f_len;
-                    fseek(f, 0, SEEK_END);
-                    f_len = ftell(f);
-                    assert(f_len <= sizeof (Water_a));
-                    fseek(f, 0, SEEK_SET);
-                    fread((void *)water_a, f_len, 1, f);
-                    fclose(f);
-                }
-                else {
-                    water_a->count      = 0;
-                }
-            }
-                    static int flashlight_on = 0;
 
+                if(!LoadFromFilename((void *)monsterArray, sizeof (MonsterArray), "monster.data")) {
+                    monsterArray->count      = 0;
+                }
+
+                // :load objects
+                if(LoadFromFilename((void *) objectArray, sizeof(ObjectArray), "objects.data")) {
+                    printf("loaded %d objects\n", objectArray->count);
+                }
+                
+            }
+            // :input
+            // :key_t
+            if(IsKeyPressed(KEY_T)) {
+                // Check if object exists at these coordinates
+                int floorExists = 0;
+                for (int floorIndex = 0; floorIndex < floorArray->count;++floorIndex) {
+                    Floor *floor = &floorArray->items[floorIndex];
+                    if (floor->x == player.x && floor->y==player.y) {
+                        floorExists = 1;
+                        floor->type = Tile;
+                        break;
+                    }
+                }
+                if (!floorExists) {
+                    Floor *floor = &floorArray->items[floorArray->count];
+                    floor->x = player.x;
+                    floor->y = player.y;
+                    floor->type = Tile;
+                    ++floorArray->count;
+                }
+                // :save floors
+                SaveToFilename((void *)floorArray, sizeof(ObjectArray),"floor.data");
+            }
+            // :key_f
+            if(IsKeyPressed(KEY_F)) {
+                // Check if object exists at these coordinates
+                int floorExists = 0;
+                for (int floorIndex = 0; floorIndex < floorArray->count;++floorIndex) {
+                    Floor *floor = &floorArray->items[floorIndex];
+                    if (floor->x == player.x && floor->y==player.y) {
+                        floorExists = 1;
+                        ++floor->type;
+                        if (floor->type >= FloorTypeEnd){
+                            *floor = floorArray->items[floorArray->count-1];
+                            --floorArray->count;
+                        } 
+                        break;
+                    }
+                }
+                if (!floorExists) {
+                    Floor *floor = &floorArray->items[floorArray->count];
+                    floor->x = player.x;
+                    floor->y = player.y;
+                    floor->type = 0;
+                    ++floorArray->count;
+                }
+                // :save floors
+                SaveToFilename((void *)floorArray, sizeof(ObjectArray),"floor.data");
+            }
+
+            // :key_o
+            if (IsKeyPressed(KEY_O)) {
+                // Check if object exists at these coordinates
+                int objectExists = 0;
+                for (int objectIndex = 0; objectIndex < objectArray->count;++objectIndex) {
+                    Object *object = &objectArray->items[objectIndex];
+                    if (object->x == player.x && object->y==player.y) {
+                        objectExists = 1;
+                        ++object->type;
+                        if (object->type >= ObjectTypeEnd){
+                            *object = objectArray->items[objectArray->count-1];
+                            --objectArray->count;
+                        } 
+                        break;
+                    }
+                }
+                if (!objectExists) {
+                    Object *object = &objectArray->items[objectArray->count];
+                    object->x = player.x;
+                    object->y = player.y;
+                    object->type = 0;
+                    ++objectArray->count;
+                }
+                // :save objects
+                
+                SaveToFilename((void *)objectArray, sizeof(ObjectArray),"objects.data");
+            }
             if (IsKeyPressed(KEY_D)) {
                 mode = DRAW;
             }
@@ -553,72 +602,28 @@ void game() {
                 camera.zoom -= 1;
             }
 
-            if(IsKeyDown(KEY_F)) {
-                int floor_detected = 0;
-                for (int i = 0; i < ground_a->count; ++i) {
-                    if(ground_a->items[i].x == player.x &&
-                    ground_a->items[i].y == player.y) {
-                        floor_detected = 1;
-                    }
-                }
-                if (!floor_detected) {
-                    ground_a->items[ground_a->count].x = player.x;
-                    ground_a->items[ground_a->count].y = player.y;
-                    ground_a->items[ground_a->count].type  =1; // tile
-                    ++ground_a->count;
-                    FILE * f = fopen("assets/ground.data", "w");
-                    if (f != NULL) {
-                        fwrite((void *)ground_a, sizeof (Ground_a), 1, f);
-                        fclose(f);
-                    }
-                }
-            }
 
             // :place monster
             int key_pressed = GetKeyPressed();
             if (key_pressed >= 48 && key_pressed <= 57) {
-                if (monster_a->count < Monster_Max) {
-                    monster_a->items[monster_a->count].x = player.x;
-                    monster_a->items[monster_a->count].y = player.y;
-                    monster_a->items[monster_a->count].type = key_pressed-48; // 0-9
-                    ++monster_a->count;
-                    FILE * f = fopen("assets/monster.data", "w");
-                    if (f != NULL) {
-                        fwrite((void *)monster_a, sizeof (Monster_a), 1, f);
-                        fclose(f);
-                    }
+                if (monsterArray->count < Monster_Max) {
+                    monsterArray->items[monsterArray->count].x = player.x;
+                    monsterArray->items[monsterArray->count].y = player.y;
+                    monsterArray->items[monsterArray->count].type = key_pressed-48; // 0-9
+                    ++monsterArray->count;
+                    SaveToFilename((void *) monsterArray,sizeof(MonsterArray), "monster.data");
                 }
             }
             if(IsKeyDown(KEY_C)) {
-                for (int i = 0; i < monster_a->count; ++i) {
-                    if(monster_a->items[i].x == player.x &&
-                    monster_a->items[i].y == player.y) {
-                        monster_a->items[i] = monster_a->items[monster_a->count - 1];
-                        --monster_a->count;
+                for (int i = 0; i < monsterArray->count; ++i) {
+                    if(monsterArray->items[i].x == player.x &&
+                    monsterArray->items[i].y == player.y) {
+                        monsterArray->items[i] = monsterArray->items[monsterArray->count - 1];
+                        --monsterArray->count;
                     }
                 }
-                static FILE * f;
-               f = fopen("assets/monster.data", "w");
-                if (f != NULL) {
-                    fwrite((void *)monster_a, sizeof (Monster_a), 1, f);
-                    fclose(f);
-                }
+                SaveToFilename((void *)monsterArray, sizeof(MonsterArray), "monster.data");
 
-                // delete floor
-                for (int i = 0; i < ground_a->count; ++i) {
-                    if(ground_a->items[i].x == player.x &&
-                    ground_a->items[i].y == player.y) {
-                        ground_a->items[i] = ground_a->items[ground_a->count - 1];
-                        --ground_a->count;
-                    }
-                }
-                {
-                    f = fopen("assets/ground.data", "w");
-                    if (f != NULL) {
-                        fwrite((void *)ground_a, sizeof (Ground_a), 1, f);
-                        fclose(f);
-                    }
-                }
             }
 
             // @Hack: this should be later
@@ -638,19 +643,6 @@ void game() {
                 player.y_dest += 1;
                 player.moving_y = 1;
             }
-            {
-                int water_count = 0;
-                for (int i = 0; i <  water_a->count; ++i) {
-                    if (water_a->items[i].x == player.x_dest && 
-                        water_a->items[i].y == player.y_dest ){
-                        ++water_count;
-                    }
-                }
-                if (water_count > 1) {
-                    player.y_dest = player.y;
-                    player.y_pixel_dest = player.y_pixel;
-                }
-            }
             if (right()   && !player.moving_x) {
                 player.direction = RIGHT;
                 player.x_pixel_dest += Tile_Size;
@@ -663,26 +655,13 @@ void game() {
                 player.x_dest   -= 1;
                 player.moving_x = 1;
             }
-            {
-            int water_count = 0;
-                for (int i = 0; i <  water_a->count; ++i) {
-                    if (water_a->items[i].x == player.x_dest && 
-                        water_a->items[i].y == player.y_dest ){
-                        water_count++;
-                    }
-                }
-                if (water_count > 1) {
-                    player.x_dest = player.x;
-                    player.x_pixel_dest = player.x_pixel;
-                }
-            }
             static float speed = 4.0f; 
             // :collision
             int collision = 0;
             if (!noclip) {
                 collision = 1;
-                for(int i = 0; i < ground_a->count; ++i) {
-                    if (ground_a->items[i].x == player.x_dest && ground_a->items[i].y == player.y_dest) {
+                for(int i = 0; i < floorArray->count; ++i) {
+                    if (floorArray->items[i].x == player.x_dest && floorArray->items[i].y == player.y_dest) {
                         collision = 0;
                         break;
                     }
@@ -714,18 +693,29 @@ void game() {
             }
 
 
+
             camera.offset.x     = screen.x/2 - 32 + -(player.x_pixel * camera.zoom);
             camera.offset.y     = screen.y/2 - 32 + -(player.y_pixel * camera.zoom);
             // :draw
                 BeginMode2D(camera); // All that happens in here will move with the camera
-                    // :ground
-                    for (int i = 0; i < ground_a->count; ++i) {
-                        DrawTextureEx(ground_tex, (Vector2) {ground_a->items[i].x * Tile_Size, ground_a->items[i].y * Tile_Size}, 0, 4, WHITE);
+                    //   :draw floor 
+                    for (int floorIndex = 0; 
+                           floorIndex < floorArray->count; 
+                           ++floorIndex) {
+                        Floor * floor = &floorArray->items[floorIndex];
+                        DrawTextureEx(floorTextureArray[floor->type], Vector2PixelsFromXYCoords(floor->x, floor->y), 0, 4, WHITE);
                     }
-                    //   :draw water
-                    for (int i = 0; i < water_a->count; ++i) {
-                        DrawRectangle(water_a->items[i].x * 64, water_a->items[i].y * 64, 64, 64, Fade(BLUE, 0.75f));
+                    //   :draw objects
+                    for (int objectIndex = 0; 
+                           objectIndex < objectArray->count; 
+                           ++objectIndex) {
+                        Object * object = &objectArray->items[objectIndex];
+                        DrawTextureEx(objectTextureArray[object->type], Vector2PixelsFromXYCoords(object->x, object->y), 0, 4, WHITE);
                     }
+
+
+
+
             // :spacebar
             // :action
             // :shoot
@@ -734,13 +724,13 @@ void game() {
                 if (player.direction == RIGHT) {
                     DrawRectangle(player.x*64, player.y * 64, 1000,64, (Color) {248,57,53,255});
                     for (int i = 0; i < 10; ++i) {
-                        for (int mi = 0; mi < monster_a->count; ++mi) {
-                            Monster * monster = &monster_a->items[mi];
+                        for (int mi = 0; mi < monsterArray->count; ++mi) {
+                            Monster * monster = &monsterArray->items[mi];
                             if (monster->x == player.x + i && monster->y == player.y) {
                                 monster->type = MonsterDead;
                                 /*
-                                monster_a->items[mi] = monster_a->items[monster_a->count - 1];
-                                --monster_a->count;
+                                monsterArray->items[mi] = monsterArray->items[monsterArray->count - 1];
+                                --monsterArray->count;
                                 */
                             goto ShootingDone;
                             }
@@ -750,13 +740,13 @@ void game() {
                 if (player.direction == LEFT) {
                     DrawRectangle(player.x*64 - 1000, player.y * 64, 1000,64, (Color) {248,57,53,255});
                     for (int i = 0; i < 10; ++i) {
-                        for (int mi = 0; mi < monster_a->count; ++mi) {
-                            Monster * monster = &monster_a->items[mi];
+                        for (int mi = 0; mi < monsterArray->count; ++mi) {
+                            Monster * monster = &monsterArray->items[mi];
                             if (monster->x == player.x - i && monster->y == player.y) {
                                 monster->type = MonsterDead;
                                 /*
-                                monster_a->items[mi] = monster_a->items[monster_a->count - 1];
-                                --monster_a->count;
+                                monsterArray->items[mi] = monsterArray->items[monsterArray->count - 1];
+                                --monsterArray->count;
                                 */
                                 goto ShootingDone;
                             }
@@ -767,13 +757,13 @@ void game() {
                 if (player.direction == UP) {
                     DrawRectangle(player.x*64, player.y * 64 - 1000, 64, 1000, (Color) {248,57,53,255});
                     for (int i = 0; i < 10; ++i) {
-                        for (int mi = 0; mi < monster_a->count; ++mi) {
-                            Monster * monster = &monster_a->items[mi];
+                        for (int mi = 0; mi < monsterArray->count; ++mi) {
+                            Monster * monster = &monsterArray->items[mi];
                             if (monster->y == player.y - i && monster->x == player.x) {
                                 monster->type = MonsterDead;
                                 /*
-                                monster_a->items[mi] = monster_a->items[monster_a->count - 1];
-                                --monster_a->count;
+                                monsterArray->items[mi] = monsterArray->items[monsterArray->count - 1];
+                                --monsterArray->count;
                                 */
                                 goto ShootingDone;
                             }
@@ -784,13 +774,13 @@ void game() {
                 if (player.direction == DOWN) {
                     DrawRectangle(player.x*64, player.y * 64, 64, 1000, (Color) {248,57,53,255});
                     for (int i = 0; i < 10; ++i) {
-                        for (int mi = 0; mi < monster_a->count; ++mi) {
-                            Monster * monster = &monster_a->items[mi];
+                        for (int mi = 0; mi < monsterArray->count; ++mi) {
+                            Monster * monster = &monsterArray->items[mi];
                             if (monster->y == player.y + i && monster->x == player.x) {
                                 monster->type = MonsterDead;
                                 /*
-                                monster_a->items[mi] = monster_a->items[monster_a->count - 1];
-                                --monster_a->count;
+                                monsterArray->items[mi] = monsterArray->items[monsterArray->count - 1];
+                                --monsterArray->count;
                                 */
                                 goto ShootingDone;
                             }
@@ -809,8 +799,8 @@ void game() {
 #define SethIndex 2
 #define DoorIndex 8
                     if (enemy_timer > enemy_speed && !noclip) {
-                        for (int i = 0; i < monster_a->count; ++i) {
-                            Monster * monster = &monster_a->items[i];
+                        for (int i = 0; i < monsterArray->count; ++i) {
+                            Monster * monster = &monsterArray->items[i];
                             memcpy(&temp_monster,monster, sizeof(Monster));
                             enemy_timer = 0;
                             if (monster->type == MonsterDead) { 
@@ -831,8 +821,8 @@ void game() {
                                     monster->y--;
                                 }
                             }
-                            for (int n = 0; n < monster_a->count; ++n) {
-                                Monster * monster2 = &monster_a->items[n];
+                            for (int n = 0; n < monsterArray->count; ++n) {
+                                Monster * monster2 = &monsterArray->items[n];
                                 if (n == i) continue;
                                 if (monster2->x == monster->x && monster->y == monster2->y) {
                                     memcpy(monster, &temp_monster, sizeof(Monster));
@@ -841,8 +831,8 @@ void game() {
 
                             }
                             int collision = 1;
-                            for(int w = 0; w < ground_a->count; ++w) {
-                                if (ground_a->items[w].x == monster->x && ground_a->items[w].y == monster->y) {
+                            for(int w = 0; w < floorArray->count; ++w) {
+                                if (floorArray->items[w].x == monster->x && floorArray->items[w].y == monster->y) {
                                     collision = 0;
                                     break;
                                 }
@@ -853,8 +843,10 @@ void game() {
                         }
                     }
                     // :draw monster
-                    for (int i = 0; i < monster_a->count; ++i) {
-                        Monster * monster = &monster_a->items[i];
+                    for (int monsterIndex = 0; 
+                            monsterIndex < monsterArray->count; 
+                            ++monsterIndex) {
+                        Monster * monster = &monsterArray->items[monsterIndex];
                         if(enemy_timer > 30 && monster->type == SethIndex) {
                             DrawRectangle(monster->x*64 - 64, monster->y * 64 -64, 260,32, (Color) {37,75,165,255});
                             DrawText("Would you like a glass of SHUT UP NOW?",
@@ -902,7 +894,36 @@ void game() {
                         DrawTexturePro(person_walk_tex, (Rectangle) { 32 * frame, 0, 32, 32 }, player_rect, (Vector2){ 0, 0 }, 0, WHITE);
                     }
                 EndMode2D();
-                    // :flashlight
+
+                // :collision with monster
+                // :jumpscare
+                // @todo: compress
+                Monster * collidedMonster = NULL;
+                for (int monsterIndex = 0; 
+                    monsterIndex < monsterArray->count; 
+                    ++monsterIndex) {
+                    Monster * monster = &monsterArray->items[monsterIndex];
+                    if (monster->x == player.x && monster->y == player.y) {
+                        collidedMonster = monster;
+                        break;
+                    }
+                }
+                if (collidedMonster) {
+                    if (!IsSoundPlaying(monsterScreamSound)) {
+                        PlaySound(monsterScreamSound);
+                    }
+                    DrawRectangle(0,0,screen.x, screen.y, BLACK);
+                    DrawRectangle(0,0,screen.x, screen.y, Fade(RED,(rand() %100)/100.0f));
+                    DrawTexturePro(monster_tex_a[collidedMonster->type], 
+                     /* src    */   (Rectangle) { 0,      0,   16,   16 }, 
+                     /* dest   */   (Rectangle) { 612,  512, 1024, 1024 },
+                     /* origin   */ (Vector2)   { 512,  512},             
+                     /* rotation */ -8 +(rand() % 16),  /* tint */ WHITE);
+                } else {
+                    if (IsSoundPlaying(monsterScreamSound)) {
+                        StopSound(monsterScreamSound);
+                    }
+                }
             EndDrawing();
         }
     }//while
