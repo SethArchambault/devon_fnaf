@@ -14,7 +14,6 @@ Seth
 - remove jump scare in noclip mode
 - need chairs
 - need a sink
-- counter space
 - stove
 - need clear button to work
 - make draw mode work with all textures
