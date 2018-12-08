@@ -1,8 +1,31 @@
+/*
+- game_stuff image make them individual 
+ * [x] clear button works?
+ * [x] make a sink
+ * [x] make a stove
+ * [x] a repeat button for the floor
+ * [ ] make a sink with multiple orientations
+ * notes: 
+ * - png, y - different direction / state, x - animation
+ * door sound
+ * https://www.youtube.com/watch?v=k3v37Ac_CvI
+ * footstep sound
+ * https://www.youtube.com/watch?v=btiw_49DeUU
+ * ideas:
+ *  - eneimies can make thinks mobile
+ *  - build your own pizza ria simulation
+ *  - make the draw mode load pngs?
+ */
+
+
+
+
 #include <math.h>
 #include <string.h>
 #include "/opt/raylib/src/external/stb_image_write.h"
 #include <time.h>  // rand
 #define Role_Max 6
+#define Image_Size 16 
 #define Tile_Size 64
 #define Monster_Max 100
 #define Floor_Max 10000
@@ -27,14 +50,19 @@ typedef struct {
 } Water;
 
 typedef enum {
-    Table, Door, Fire, ObjectTypeEnd
+    Table, Door, Sink, Stove, Counter, Generator, Switch, Fire, ObjectTypeEnd
 } ObjectType;
 
+
+typedef enum {
+    North, East, South, West, RotationTypeEnd
+} RotationType;
 
 typedef struct {
     int x;
     int y;
     ObjectType type;
+    RotationType rotation;
 } Object;
 
 typedef struct {
@@ -118,6 +146,9 @@ int int_from_float(float f) {
 Vector2 Vector2PixelsFromXYCoords(int x, int y) {
     return (Vector2){ x * Tile_Size, y * Tile_Size };
 }
+Rectangle RectanglePixelsFromXYCoords(int x, int y, int size) {
+    return (Rectangle){ x * Tile_Size, y * Tile_Size, size, size};
+}
 
 int SaveToFilename(void * data, int size, char * filename) {
     char path[100] = "assets/";
@@ -145,6 +176,7 @@ int LoadFromFilename(void * data, int size, char * filename) {
         long int f_len;
         fseek(f, 0, SEEK_END);
         f_len = ftell(f);
+        printf("%s\n", filename);
         assert(f_len <= size);
         fseek(f, 0, SEEK_SET);
         fread(data, f_len, 1, f);
@@ -179,16 +211,24 @@ void game() {
     Texture2D person_stand_tex      = LoadTexture("assets/devon_standing.png");
     Texture2D person_walk_tex       = LoadTexture("assets/devon_walking.png"); 
     
-    Texture2D objectTextureArray[Object_Max];
-    objectTextureArray[Table]       = LoadTexture("assets/table.png");
-    objectTextureArray[Door]        = LoadTexture("assets/door.png");
-    objectTextureArray[Fire]        = LoadTexture("assets/fire.png");
+    //:objectTexture
+    Texture2D objectTextureArray[ObjectTypeEnd];
+    objectTextureArray[Table]       = LoadTexture("assets/objects/table.png");
+    objectTextureArray[Door]        = LoadTexture("assets/objects/door.png");
+    objectTextureArray[Sink]        = LoadTexture("assets/objects/sink.png");
+    objectTextureArray[Stove]       = LoadTexture("assets/objects/stove.png");
+    objectTextureArray[Counter]     = LoadTexture("assets/objects/counter.png");
+    objectTextureArray[Generator]   = LoadTexture("assets/objects/generator.png");
+    objectTextureArray[Switch]      = LoadTexture("assets/objects/switch.png");
+    objectTextureArray[Fire]        = LoadTexture("assets/objects/fire.png");
+    ObjectType objectTypeLastUsed = Table;
 
-    Texture2D floorTextureArray[Floor_Max];
+    Texture2D floorTextureArray[FloorTypeEnd];
     floorTextureArray[Tile]         = LoadTexture("assets/tile_floor.png");
     floorTextureArray[Wood]         = LoadTexture("assets/wood_floor.png");
     floorTextureArray[Concrete]     = LoadTexture("assets/concrete_floor.png");
     floorTextureArray[BrokenTile]   = LoadTexture("assets/broken_tile_floor.png");
+    FloorType floorTypeLastUsed = Tile;
 
 
     // :load sound
@@ -200,6 +240,7 @@ void game() {
     int frame_long = 0;
     int frame_passed = 0;
     int frame = 0;
+    int jumpscare = 0;
     while (!WindowShouldClose()) {
         ++frame_passed;
         ++frame_long;
@@ -533,7 +574,9 @@ void game() {
                 SaveToFilename((void *)floorArray, sizeof(ObjectArray),"floor.data");
             }
             // :key_f
-            if(IsKeyPressed(KEY_F)) {
+            // :floor
+            if(IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_F)) {
+                printf("key_left_shift\n");
                 // Check if object exists at these coordinates
                 int floorExists = 0;
                 for (int floorIndex = 0; floorIndex < floorArray->count;++floorIndex) {
@@ -541,9 +584,11 @@ void game() {
                     if (floor->x == player.x && floor->y==player.y) {
                         floorExists = 1;
                         ++floor->type;
+                        floorTypeLastUsed = floor->type;
                         if (floor->type >= FloorTypeEnd){
                             *floor = floorArray->items[floorArray->count-1];
                             --floorArray->count;
+                            floorTypeLastUsed = NULL;
                         } 
                         break;
                     }
@@ -553,13 +598,60 @@ void game() {
                     floor->x = player.x;
                     floor->y = player.y;
                     floor->type = 0;
+                    floorTypeLastUsed = floor->type;
                     ++floorArray->count;
                 }
                 // :save floors
                 SaveToFilename((void *)floorArray, sizeof(ObjectArray),"floor.data");
             }
+            if(!IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_F)) {
+                printf("no key_left_shift\n");
+                // Check if object exists at these coordinates
+                int floorExists = 0;
+                for (int floorIndex = 0; floorIndex < floorArray->count;++floorIndex) {
+                    Floor *floor = &floorArray->items[floorIndex];
+                    if (floor->x == player.x && floor->y==player.y) {
+                        floorExists = 1;
+                        if (floorTypeLastUsed) {
+                            floor->type = floorTypeLastUsed;
+                        }
+                        else {
+                            *floor = floorArray->items[floorArray->count-1];
+                            --floorArray->count;
+                        } 
+                        break;
+                    }
+                }
+                if (!floorExists && floorTypeLastUsed) {
+                    Floor *floor = &floorArray->items[floorArray->count];
+                    floor->x = player.x;
+                    floor->y = player.y;
+                    floor->type = floorTypeLastUsed;
+                    ++floorArray->count;
+                }
+                // :save floors
+                SaveToFilename((void *)floorArray, sizeof(ObjectArray),"floor.data");
+            }
+            // :rotate object
+            if (IsKeyPressed(KEY_R)) {
+                // Check if object exists at these coordinates
+                for (int objectIndex = 0; objectIndex < objectArray->count;++objectIndex) {
+                    Object *object = &objectArray->items[objectIndex];
+                    if (object->x == player.x && object->y==player.y) {
+                        ++object->rotation;
+                        printf("rotated %d\n", object->rotation);
+                        if (object->rotation >= RotationTypeEnd){
+                            object->rotation = North;
+                        } 
+                        break;
+                    }
+                }
+                // :save objects
+                SaveToFilename((void *)objectArray, sizeof(ObjectArray),"objects.data");
+            }
 
             // :key_o
+            // :create object
             if (IsKeyPressed(KEY_O)) {
                 // Check if object exists at these coordinates
                 int objectExists = 0;
@@ -569,6 +661,7 @@ void game() {
                         objectExists = 1;
                         ++object->type;
                         if (object->type >= ObjectTypeEnd){
+                            printf("end %d\n", ObjectTypeEnd);
                             *object = objectArray->items[objectArray->count-1];
                             --objectArray->count;
                         } 
@@ -583,7 +676,6 @@ void game() {
                     ++objectArray->count;
                 }
                 // :save objects
-                
                 SaveToFilename((void *)objectArray, sizeof(ObjectArray),"objects.data");
             }
             if (IsKeyPressed(KEY_D)) {
@@ -611,6 +703,7 @@ void game() {
                     SaveToFilename((void *) monsterArray,sizeof(MonsterArray), "monster.data");
                 }
             }
+            // :clear
             if(IsKeyDown(KEY_C)) {
                 for (int i = 0; i < monsterArray->count; ++i) {
                     if(monsterArray->items[i].x == player.x &&
@@ -619,7 +712,15 @@ void game() {
                         --monsterArray->count;
                     }
                 }
+                for (int i = 0; i < objectArray->count; ++i) {
+                    if(objectArray->items[i].x == player.x &&
+                    objectArray->items[i].y == player.y) {
+                        objectArray->items[i] = objectArray->items[objectArray->count - 1];
+                        --objectArray->count;
+                    }
+                }
                 SaveToFilename((void *)monsterArray, sizeof(MonsterArray), "monster.data");
+                SaveToFilename((void *)objectArray, sizeof(ObjectArray),"objects.data");
 
             }
 
@@ -707,7 +808,20 @@ void game() {
                            objectIndex < objectArray->count; 
                            ++objectIndex) {
                         Object * object = &objectArray->items[objectIndex];
-                        DrawTextureEx(objectTextureArray[object->type], Vector2PixelsFromXYCoords(object->x, object->y), 0, 4, WHITE);
+                        // horizontal - all object should have orientation.. North East South West
+                        // vertical - different states,
+                        // - door is closed
+                        // - door is opening
+                        // - door is open
+                        // - door is closing
+                        // - switch is on
+                        // - switch is turning off
+                        // - switch is off
+                        // - switch is turning on
+                        // - oven is on
+                        // void DrawTexturePro(Texture2D texture, Rectangle sourceRec, Vector2 position, Color tint);
+                        DrawTexturePro(objectTextureArray[object->type],  RectanglePixelsFromXYCoords(object->rotation,0, Image_Size), RectanglePixelsFromXYCoords(object->x, object->y, Tile_Size), (Vector2){0,0}, 0, WHITE);
+                        //DrawTexturePro(objectTextureArray[object->type],  RectanglePixelsFromXYCoords(1,0, Image_Size), RectanglePixelsFromXYCoords(object->x, object->y, Tile_Size), (Vector2){0,0}, 0, WHITE);
                     }
 
 
@@ -895,7 +1009,7 @@ void game() {
                 // :collision with monster
                 // :jumpscare
                 // @todo: compress
-                if (!noclip) {
+                if (jumpscare && !noclip) {
                     Monster * collidedMonster = NULL;
                     for (int monsterIndex = 0; 
                         monsterIndex < monsterArray->count; 
