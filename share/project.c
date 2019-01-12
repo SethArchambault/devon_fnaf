@@ -27,8 +27,9 @@
 #define Object_Max 10000
 #define Water_Max 10000
 
+// :floor type
 typedef enum {
-    Wood, Tile, Concrete, BrokenTile, Blank, FloorTypeEnd
+    Wood, Tile, Concrete, BrokenTile, Blank, Grass, Asphalt, AsphaltLines, Sidewalk, Dirt, FloorTypeEnd
 } FloorType;
 
 typedef struct {
@@ -216,10 +217,15 @@ void game() {
     ObjectType objectTypeLastUsed = Table;
 
     Texture2D floorTextureArray[FloorTypeEnd];
-    floorTextureArray[Tile]         = LoadTexture("assets/tile_floor.png");
-    floorTextureArray[Wood]         = LoadTexture("assets/wood_floor.png");
-    floorTextureArray[Concrete]     = LoadTexture("assets/concrete_floor.png");
-    floorTextureArray[BrokenTile]   = LoadTexture("assets/broken_tile_floor.png");
+    floorTextureArray[Tile]         = LoadTexture("assets/floor/tile_floor.png");
+    floorTextureArray[Wood]         = LoadTexture("assets/floor/wood_floor.png");
+    floorTextureArray[Concrete]     = LoadTexture("assets/floor/concrete_floor.png");
+    floorTextureArray[BrokenTile]   = LoadTexture("assets/floor/broken_tile_floor.png");
+    floorTextureArray[Grass]   = LoadTexture("assets/floor/grass_ground.png");
+    floorTextureArray[Asphalt]   = LoadTexture("assets/floor/asphalt_floor.png");
+    floorTextureArray[AsphaltLines]   = LoadTexture("assets/floor/asphalt_w_line.png");
+    floorTextureArray[Sidewalk]   = LoadTexture("assets/floor/sidewalk.png");
+    floorTextureArray[Dirt]   = LoadTexture("assets/floor/dirt.png");
     FloorType floorTypeLastUsed = Tile;
 
 
@@ -583,7 +589,6 @@ void game() {
                 SaveToFilename((void *)floorArray, sizeof(FloorArray),"floor.data");
             }
             if(!IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_F)) {
-                printf("no key_left_shift\n");
                 // Check if object exists at these coordinates
                 int floorExists = 0;
                 for (int floorIndex = 0; floorIndex < floorArray->count;++floorIndex) {
