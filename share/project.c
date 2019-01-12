@@ -1,12 +1,7 @@
 /*
 - game_stuff image make them individual 
- * [x] clear button works?
- * [x] make a sink
- * [x] make a stove
- * [x] a repeat button for the floor
- * [ ] make a sink with multiple orientations
  * notes: 
- * - png, y - different direction / state, x - animation
+ * - png, y - different direction x - animation / different states
  * door sound
  * https://www.youtube.com/watch?v=k3v37Ac_CvI
  * footstep sound
@@ -33,7 +28,7 @@
 #define Water_Max 10000
 
 typedef enum {
-    Wood, Tile, Concrete, BrokenTile, FloorTypeEnd
+    Wood, Tile, Concrete, BrokenTile, Blank, FloorTypeEnd
 } FloorType;
 
 typedef struct {
@@ -42,27 +37,23 @@ typedef struct {
     int type;
 } Floor;
 
-
-
 typedef struct {
     int x;
     int y;
 } Water;
 
 typedef enum {
-    Table, Door, Sink, Stove, Counter, Generator, Switch, Fire, ObjectTypeEnd
+    Table, Door, Chair, Sink, Stove, Counter, Generator, Switch, Fire, ObjectTypeEnd
 } ObjectType;
 
 
-typedef enum {
-    North, East, South, West, RotationTypeEnd
-} RotationType;
 
 typedef struct {
     int x;
     int y;
     ObjectType type;
-    RotationType rotation;
+    int rotation;
+    int actionFrame;
 } Object;
 
 typedef struct {
@@ -176,7 +167,7 @@ int LoadFromFilename(void * data, int size, char * filename) {
         long int f_len;
         fseek(f, 0, SEEK_END);
         f_len = ftell(f);
-        printf("%s\n", filename);
+        printf("%s %d %d\n", filename, f_len, size);
         assert(f_len <= size);
         fseek(f, 0, SEEK_SET);
         fread(data, f_len, 1, f);
@@ -214,6 +205,7 @@ void game() {
     //:objectTexture
     Texture2D objectTextureArray[ObjectTypeEnd];
     objectTextureArray[Table]       = LoadTexture("assets/objects/table.png");
+    objectTextureArray[Chair]       = LoadTexture("assets/objects/chair.png");
     objectTextureArray[Door]        = LoadTexture("assets/objects/door.png");
     objectTextureArray[Sink]        = LoadTexture("assets/objects/sink.png");
     objectTextureArray[Stove]       = LoadTexture("assets/objects/stove.png");
@@ -234,14 +226,21 @@ void game() {
     // :load sound
     InitAudioDevice(); 
     Sound monsterScreamSound = LoadSound("assets/sound/monster_scream.ogg");  
-    
+
+    Sound doorOpenSound = LoadSound("assets/sound/door_open.ogg");
+    Sound doorCloseSound = LoadSound("assets/sound/door_close.ogg");
+
     Mode mode = TITLE; 
 
+    // :init
+    int timer = 0;
     int frame_long = 0;
     int frame_passed = 0;
     int frame = 0;
     int jumpscare = 0;
     while (!WindowShouldClose()) {
+        ++timer;
+        if (timer > 1000) timer = 0;
         ++frame_passed;
         ++frame_long;
         /* :splash_screen */
@@ -552,27 +551,6 @@ void game() {
             }
             // :input
             // :key_t
-            if(IsKeyPressed(KEY_T)) {
-                // Check if object exists at these coordinates
-                int floorExists = 0;
-                for (int floorIndex = 0; floorIndex < floorArray->count;++floorIndex) {
-                    Floor *floor = &floorArray->items[floorIndex];
-                    if (floor->x == player.x && floor->y==player.y) {
-                        floorExists = 1;
-                        floor->type = Tile;
-                        break;
-                    }
-                }
-                if (!floorExists) {
-                    Floor *floor = &floorArray->items[floorArray->count];
-                    floor->x = player.x;
-                    floor->y = player.y;
-                    floor->type = Tile;
-                    ++floorArray->count;
-                }
-                // :save floors
-                SaveToFilename((void *)floorArray, sizeof(ObjectArray),"floor.data");
-            }
             // :key_f
             // :floor
             if(IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_F)) {
@@ -588,7 +566,7 @@ void game() {
                         if (floor->type >= FloorTypeEnd){
                             *floor = floorArray->items[floorArray->count-1];
                             --floorArray->count;
-                            floorTypeLastUsed = NULL;
+                            floorTypeLastUsed = Blank;
                         } 
                         break;
                     }
@@ -602,7 +580,7 @@ void game() {
                     ++floorArray->count;
                 }
                 // :save floors
-                SaveToFilename((void *)floorArray, sizeof(ObjectArray),"floor.data");
+                SaveToFilename((void *)floorArray, sizeof(FloorArray),"floor.data");
             }
             if(!IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_F)) {
                 printf("no key_left_shift\n");
@@ -630,9 +608,25 @@ void game() {
                     ++floorArray->count;
                 }
                 // :save floors
-                SaveToFilename((void *)floorArray, sizeof(ObjectArray),"floor.data");
+                SaveToFilename((void *)floorArray, sizeof(FloorArray),"floor.data");
             }
-            // :rotate object
+            // :change state of object
+            if (IsKeyPressed(KEY_S)) {
+                // Check if object exists at these coordinates
+                for (int objectIndex = 0; objectIndex < objectArray->count;++objectIndex) {
+                    Object *object = &objectArray->items[objectIndex];
+                    if (object->x == player.x && object->y==player.y) {
+                        ++object->actionFrame;
+                        if (object->actionFrame >= 4){
+                            object->actionFrame = 0;
+                        } 
+                        break;
+                    }
+                }
+                // :save objects
+                SaveToFilename((void *)objectArray, sizeof(ObjectArray),"objects.data");
+            }
+            // :change rotation of object
             if (IsKeyPressed(KEY_R)) {
                 // Check if object exists at these coordinates
                 for (int objectIndex = 0; objectIndex < objectArray->count;++objectIndex) {
@@ -640,8 +634,8 @@ void game() {
                     if (object->x == player.x && object->y==player.y) {
                         ++object->rotation;
                         printf("rotated %d\n", object->rotation);
-                        if (object->rotation >= RotationTypeEnd){
-                            object->rotation = North;
+                        if (object->rotation >= 4){
+                            object->rotation = 0;
                         } 
                         break;
                     }
@@ -794,6 +788,40 @@ void game() {
 
             camera.offset.x     = screen.x/2 - 32 + -(player.x_pixel * camera.zoom);
             camera.offset.y     = screen.y/2 - 32 + -(player.y_pixel * camera.zoom);
+
+
+            // :animate
+            if (timer % 20 == 0) {
+                for (int objectIndex = 0; 
+                       objectIndex < objectArray->count; 
+                       ++objectIndex) {
+                    Object * object = &objectArray->items[objectIndex];
+                    if (object->type == Generator) {
+                        if (object->actionFrame <= 3) {
+                            object->actionFrame++;
+                            if (object->actionFrame > 3) {
+                                object->actionFrame  = 0;
+                            }
+                        }// if
+                    } //if
+                    if (object->type == Door) {
+                        if (object->actionFrame > 0 && object->actionFrame < 3) {
+                            if (!IsSoundPlaying(doorOpenSound)) {
+                                PlaySound(doorOpenSound);
+                            }
+                            object->actionFrame++;
+                        }// if
+                    } //if
+                    if (timer % 140 == 0) {
+                        if (object->type == Sink) {
+                            if (object->actionFrame > 0 && object->actionFrame < 3) {
+                                object->actionFrame++;
+                            }// if
+                        } //if
+                    }//if
+                }//for
+            }
+
             // :draw
                 BeginMode2D(camera); // All that happens in here will move with the camera
                     //   :draw floor 
@@ -801,7 +829,9 @@ void game() {
                            floorIndex < floorArray->count; 
                            ++floorIndex) {
                         Floor * floor = &floorArray->items[floorIndex];
-                        DrawTextureEx(floorTextureArray[floor->type], Vector2PixelsFromXYCoords(floor->x, floor->y), 0, 4, WHITE);
+                        if (floor->type != Blank) {
+                            DrawTextureEx(floorTextureArray[floor->type], Vector2PixelsFromXYCoords(floor->x, floor->y), 0, 4, WHITE);
+                        }
                     }
                     //   :draw objects
                     for (int objectIndex = 0; 
@@ -820,8 +850,7 @@ void game() {
                         // - switch is turning on
                         // - oven is on
                         // void DrawTexturePro(Texture2D texture, Rectangle sourceRec, Vector2 position, Color tint);
-                        DrawTexturePro(objectTextureArray[object->type],  RectanglePixelsFromXYCoords(object->rotation,0, Image_Size), RectanglePixelsFromXYCoords(object->x, object->y, Tile_Size), (Vector2){0,0}, 0, WHITE);
-                        //DrawTexturePro(objectTextureArray[object->type],  RectanglePixelsFromXYCoords(1,0, Image_Size), RectanglePixelsFromXYCoords(object->x, object->y, Tile_Size), (Vector2){0,0}, 0, WHITE);
+                        DrawTexturePro(objectTextureArray[object->type],  (Rectangle){ object->actionFrame * 16, object->rotation * 16,16,16}, RectanglePixelsFromXYCoords(object->x, object->y, Tile_Size), (Vector2){0,0}, 0, WHITE);
                     }
 
 
