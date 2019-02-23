@@ -22,29 +22,20 @@
 #define Role_Max 6
 #define Image_Size 16 
 #define Tile_Size 64
-#define Monster_Max 100
+#define Monster_Max 100000
 #define Floor_Max 10000
 #define Object_Max 10000
 #define Water_Max 10000
 
 // :floor type
 typedef enum {
-    Wood, Tile, Concrete, BrokenTile, Blank, Grass, Asphalt, AsphaltLines, Sidewalk, Dirt, FloorTypeEnd
+    Wood, Tile, Concrete, BrokenTile, Blank, Grass, Asphalt, AsphaltLines, Sidewalk, Dirt, Water, FloorTypeEnd
 } FloorType;
 
-typedef struct {
-    int x;
-    int y;
-    int type;
-} Floor;
 
-typedef struct {
-    int x;
-    int y;
-} Water;
-
+// :object
 typedef enum {
-    Table, Door, Chair, Sink, Stove, Counter, Generator, Switch, Fire, ObjectTypeEnd
+    Table, Door, Chair, Sink, Stove, Counter, Generator, Switch, Fire, MiniVan, ObjectTypeEnd
 } ObjectType;
 
 
@@ -69,21 +60,23 @@ typedef struct {
     int type; // 0-9
 } Monster;
 
+
+typedef struct {
+    int x;
+    int y;
+    int type;
+} Floor;
+
 typedef struct {
     Floor items[Floor_Max];
     int count;
 } FloorArray;
 
-typedef struct {
-    Water items[Water_Max];
-    int count;
-} Water_a;
 
 typedef struct {
     Monster items[Monster_Max];
     int count;
 } MonsterArray;
-
 void print_monsterArray(char msg[30],MonsterArray *monsterArray) {
     printf("\n%s monsterArray.count %d \n", msg, monsterArray->count);
     for(int i = 0; i < monsterArray->count; ++i) {
@@ -91,8 +84,9 @@ void print_monsterArray(char msg[30],MonsterArray *monsterArray) {
     }
 }
 
+// :mode
 typedef enum {
-    TITLE, DRAW, PLAY
+    TITLE, DRAW, PLAY, NEWSPAPER
 } Mode;
 typedef enum {
     STAND, WALK, DEAD
@@ -168,7 +162,7 @@ int LoadFromFilename(void * data, int size, char * filename) {
         long int f_len;
         fseek(f, 0, SEEK_END);
         f_len = ftell(f);
-        printf("%s %d %d\n", filename, f_len, size);
+        printf("%s %ld %d\n", filename, f_len, size);
         assert(f_len <= size);
         fseek(f, 0, SEEK_SET);
         fread(data, f_len, 1, f);
@@ -214,8 +208,10 @@ void game() {
     objectTextureArray[Generator]   = LoadTexture("assets/objects/generator.png");
     objectTextureArray[Switch]      = LoadTexture("assets/objects/switch.png");
     objectTextureArray[Fire]        = LoadTexture("assets/objects/fire.png");
+    objectTextureArray[MiniVan]     = LoadTexture("assets/objects/mini_van.png");
     ObjectType objectTypeLastUsed = Table;
 
+    // :floor
     Texture2D floorTextureArray[FloorTypeEnd];
     floorTextureArray[Tile]         = LoadTexture("assets/floor/tile_floor.png");
     floorTextureArray[Wood]         = LoadTexture("assets/floor/wood_floor.png");
@@ -226,6 +222,7 @@ void game() {
     floorTextureArray[AsphaltLines]   = LoadTexture("assets/floor/asphalt_w_line.png");
     floorTextureArray[Sidewalk]   = LoadTexture("assets/floor/sidewalk.png");
     floorTextureArray[Dirt]   = LoadTexture("assets/floor/dirt.png");
+    floorTextureArray[Water]   = LoadTexture("assets/floor/water.png");
     FloorType floorTypeLastUsed = Tile;
 
 
@@ -249,15 +246,18 @@ void game() {
         if (timer > 1000) timer = 0;
         ++frame_passed;
         ++frame_long;
-        /* :splash_screen */
+        // :splash_screen 
+        // :title mode
         if (TITLE == mode) {
             Vector2 cursor;
             if (IsKeyPressed(KEY_P)) {
                 mode = PLAY;
             }
+#if 0
             if (IsKeyPressed(KEY_D)) {
                 mode = DRAW;
             }
+#endif
             BeginDrawing();
                 ClearBackground(BLACK);
                 cursor.x =  screen.x/2 - 450;
@@ -282,13 +282,6 @@ void game() {
                         23, // fontsize
                         WHITE
                         );
-                cursor.y += 40;
-                DrawText("Press d to Draw",
-                        cursor.x, // xpos
-                        cursor.y, // ypos
-                        23, // fontsize
-                        WHITE
-                        );
                 cursor.y += 70;
                 DrawText("KEYS",
                         cursor.x, // xpos
@@ -304,7 +297,14 @@ void game() {
                         WHITE
                         );
                 cursor.y += 40;
-                DrawText("f = floor",
+                DrawText("f = draw floor",
+                        cursor.x, // xpos
+                        cursor.y, // ypos
+                        23, // fontsize
+                        WHITE
+                        );
+                cursor.y += 40;
+                DrawText("shift f = change floor",
                         cursor.x, // xpos
                         cursor.y, // ypos
                         23, // fontsize
@@ -318,7 +318,7 @@ void game() {
                         WHITE
                         );
                 cursor.y += 40;
-                DrawText("o = object (table, door)",
+                DrawText("o = place object",
                         cursor.x, // xpos
                         cursor.y, // ypos
                         23, // fontsize
@@ -335,6 +335,7 @@ void game() {
         }
         /* end */
        /* :draw */ 
+#if 0
         if (DRAW == mode) {
             static Vector2 cursor;
 #define DefaultColor BLANK 
@@ -508,7 +509,13 @@ void game() {
             EndDrawing();
         }
         /* end */
-        // :character selection
+#endif
+
+        // :newspaper
+        if (NEWSPAPER == mode) {
+        }
+
+
         // :play mode
         if (PLAY == mode) {
             static int init = 0;
@@ -677,9 +684,11 @@ void game() {
                 // :save objects
                 SaveToFilename((void *)objectArray, sizeof(ObjectArray),"objects.data");
             }
+#if 0
             if (IsKeyPressed(KEY_D)) {
                 mode = DRAW;
             }
+#endif
             if (IsKeyPressed(KEY_N)) {
                 noclip = !noclip;
             }
@@ -758,8 +767,12 @@ void game() {
             if (!noclip) {
                 collision = 1;
                 for(int i = 0; i < floorArray->count; ++i) {
-                    if (floorArray->items[i].x == player.x_dest && floorArray->items[i].y == player.y_dest) {
-                        collision = 0;
+                    Floor *floor = &floorArray->items[i];
+                    if (floor->x == player.x_dest && floor->y == player.y_dest) {
+                        if (floor->type != Water) {
+                            collision = 0;
+                        }
+
                         break;
                     }
                 }
@@ -848,7 +861,7 @@ void game() {
                         // - door is closed
                         // - door is opening
                         // - door is open
-                        // - door is closing
+                        // - DOOR IS CLOSING
                         // - switch is on
                         // - switch is turning off
                         // - switch is off
