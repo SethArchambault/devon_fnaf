@@ -1,0 +1,176 @@
+
+#if 0
+        if (DRAW == control_mode) {
+            static Vector2 cursor;
+#define DefaultColor BLANK 
+#define ColorMax 9
+            // :colors
+            static Color * colors; 
+            if (!colors) {
+                colors = malloc(ColorMax * sizeof(Color));
+                Color colors_t[ColorMax] = { DefaultColor, BLUE,RED, GREEN, ORANGE, WHITE, GRAY, PURPLE, VIOLET};
+                memcpy(colors, colors_t, sizeof(Color) *  ColorMax);
+            }
+            static int colors_loaded = 0;
+            static int current_monster = 0;
+            if (!colors_loaded) {
+                colors_loaded = 1;
+                // :load colors
+                LoadFromFormattedFilename((void *)colors, ColorMax * sizeof (Color), "color_set%d.data", current_monster);
+            }
+               static int cursor_color = 0;
+                static char * canvas = {0};
+#define CanvasW 16
+#define CanvasSize CanvasW   * CanvasW
+
+                if (!canvas) { 
+                    canvas = calloc(CanvasSize+1,1);
+                    // :load canvas
+                    LoadFromFormattedFilename((void *)canvas, CanvasSize, "monster%d.data", current_monster);
+                }
+#define PixelsFromCanvas for(int y = 0; y < CanvasW; ++y) {\
+                            for(int x = 0; x < CanvasW; ++x) {\
+                                pixels[y * CanvasW+ x] = colors[canvas[y* CanvasW+x]];\
+                            }\
+                        }
+                static Color *pixels; 
+                if (!pixels) pixels= (Color *)malloc(CanvasW*CanvasW*sizeof(Color));
+                int key_pressed = GetKeyPressed();
+                // :press 1-10
+                if (key_pressed >= 48 && key_pressed <= 57) {
+                    // :save monster
+                    SaveToFormattedFilename((void *)canvas, CanvasSize, "monster%d.data", current_monster);
+                    // :save colors
+                    SaveToFormattedFilename((void *)colors, ColorMax * sizeof(Color), "color_set%d.data", current_monster);
+                    current_monster = key_pressed-48;
+                    // :load colors
+                    LoadFromFormattedFilename((void *)colors, ColorMax * sizeof(Color), "color_set%d.data", current_monster);
+                    // :load canvas
+                    LoadFromFormattedFilename((void *)canvas, CanvasSize, "monster%d.data", current_monster);
+                }
+                
+                if (IsKeyPressed(KEY_S)) {
+                    PixelsFromCanvas;
+                    char filename[100];
+                    sprintf(filename, "assets/monster%d.png", current_monster);
+                    stbi_write_png(filename, CanvasW, CanvasW, 4, pixels,CanvasW*4); 
+                    // :save colors
+                    SaveToFormattedFilename((void *)colors, ColorMax * sizeof(Color), "color_set%d.data", current_monster);
+                    // :save canvas
+                    SaveToFormattedFilename((void *)canvas, CanvasSize, "monster%d.data", current_monster);
+                    // :update texture
+                    {
+                        int width = 16;
+                        for(int y = 0; y < width; ++y) {
+                            for(int x = 0; x < width; ++x) {
+                                pixels[y * width + x] = colors[canvas[y* width+x]];
+                            }
+                        }
+                        UpdateTexture(monster_tex_a[current_monster], pixels);
+                    }
+                }
+               if (cursor.x >= 0) {
+                    if (IsKeyPressed(KEY_P)) {
+                        control_mode = PLAY;
+                    }
+                    if (IsKeyPressed(KEY_DOWN)) {
+                        cursor.y += 1;
+                    }
+                    if (IsKeyPressed(KEY_UP)) {
+                        cursor.y -= 1;
+                    }
+                    if (IsKeyPressed(KEY_RIGHT)) {
+                        cursor.x += 1;
+                    }
+                    if (IsKeyPressed(KEY_LEFT)) {
+                        cursor.x -= 1;
+                    }
+                    if (IsKeyDown(KEY_SPACE) && cursor.x > 0 && cursor.y > 0) {
+                        int position = ((int)cursor.y-1) * CanvasW + ((int)cursor.x-1);
+                        canvas[position] = cursor_color;
+
+
+                        // update texture
+                        {
+                            int width = 16;
+                            for(int y = 0; y < width; ++y) {
+                                for(int x = 0; x < width; ++x) {
+                                    pixels[y * width + x] = colors[canvas[y* width+x]];
+                                }
+                            }
+                            UpdateTexture(monster_tex_a[0], pixels);
+                        }
+                    }
+               }
+               else {
+                    if (IsKeyDown(KEY_DOWN)) {
+                        if((int)cursor.x == -3) {
+                            colors[(int)cursor.y-1].r -= 1;
+                        }
+                        if((int)cursor.x == -2) {
+                            colors[(int)cursor.y-1].g -= 1;
+                        }
+                        if((int)cursor.x == -1) {
+                            colors[(int)cursor.y-1].b -= 1;
+                        }
+                    }
+                    if (IsKeyDown(KEY_UP)) {
+                        if((int)cursor.x == -3) {
+                            colors[(int)cursor.y-1].r += 1;
+                        }
+                        if((int)cursor.x == -2) {
+                            colors[(int)cursor.y-1].g += 1;
+                        }
+                        if((int)cursor.x == -1) {
+                            colors[(int)cursor.y-1].b += 1;
+                        }
+                    }
+                    if (IsKeyPressed(KEY_RIGHT)) {
+                        cursor.x += 1;
+                    }
+                    if (IsKeyPressed(KEY_LEFT)) {
+                        cursor.x -= 1;
+                    }
+               }
+                //:colorpallet interaction
+                if (cursor.x == 0) {
+                    if (cursor.y > 0 && cursor.y-1 < ColorMax) {
+                        cursor_color = (int)cursor.y-1;
+                    }
+                }
+            BeginDrawing(); // draw mode
+                ClearBackground(BLACK);
+
+#define CanvasOffset 90
+#define CursorPixelW 32
+
+
+#define PixelFromCursorX(x) (x) * CursorPixelW + CanvasOffset
+
+                // :canvas
+                for (int i = 0; i < CanvasSize;++i) {
+                    //printf("canvas %d '%c'\n",i, canvas[i]);
+                    assert((int)canvas[i] < ColorMax);
+                    DrawRectangle(PixelFromCursorX((int)((i) % CanvasW)+1), PixelFromCursorX(((int)(i)/CanvasW)+1), CursorPixelW, CursorPixelW, colors[canvas[i]]);
+                }
+                // :minimap
+                for (int i = 0; i < CanvasSize;++i) {
+                    DrawRectangle(current_monster * 32+ CanvasOffset + 32 + (i % CanvasW)*2,CanvasOffset + (i / CanvasW)*2, 3, 3, colors[canvas[i]]);
+                }
+
+                // :colorpallet
+                for (int i = 0; i < ColorMax; ++i) {
+                    if (cursor.x == 0 && i == cursor.y-1) continue;
+                    DrawRectangle(PixelFromCursorX(0), PixelFromCursorX(i+1), CursorPixelW, CursorPixelW, colors[i]);
+                }
+
+                DrawRectangleLines(PixelFromCursorX(1), PixelFromCursorX(1), CanvasW*CursorPixelW, CanvasW*CursorPixelW, Fade(WHITE,0.3));
+                // :cursor
+                if (cursor.y > 0) {
+                    DrawRectangle(PixelFromCursorX(cursor.x), PixelFromCursorX(cursor.y), CursorPixelW, CursorPixelW, Fade(colors[cursor_color],1));
+                }
+                DrawRectangleLines(PixelFromCursorX(cursor.x), PixelFromCursorX(cursor.y), CursorPixelW, CursorPixelW, GRAY);
+            EndDrawing();
+        }
+        /* end */
+#endif

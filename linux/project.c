@@ -1,1 +1,1 @@
-../share/project.c
+../osx/project.c
