@@ -13,9 +13,6 @@
  *  x -10 y -60
  */
 
-
-
-
 #include <math.h>
 #include <string.h>
 #include "/opt/raylib/src/external/stb_image_write.h"
@@ -28,19 +25,27 @@
 #define Object_Max 10000
 #define Water_Max 10000
 
+
+// :state type
+typedef enum {
+    NormalState, DialogueState
+} StateType;
+
+
 // :floor type
 typedef enum {
     Wood, Tile, Concrete, BrokenTile, Blank, Grass, Asphalt, AsphaltLines, Sidewalk, Dirt, Water, FloorTypeEnd
 } FloorType;
-
 
 // :object
 typedef enum {
     Table, Door, Chair, Sink, Stove, Counter, Generator, Switch, Fire, MiniVan, Important, ObjectTypeEnd
 } ObjectType;
 
-
-
+// monster:
+typedef enum {
+    BENNY, BUDDY, ALICE, ALEX, BOB, DENNIS, DONNY, MonsterTypeEnd
+} MonsterType;
 
 typedef struct {
     int x;
@@ -62,7 +67,6 @@ typedef struct {
     int type; // 0-9
 } Monster;
 
-
 typedef struct {
     int x;
     int y;
@@ -74,43 +78,43 @@ typedef struct {
     int count;
 } Floors;
 
-
-typedef struct {
-    Monster items[Monster_Max];
-    int count;
-} Monsters;
-void print_monsters(char msg[30],Monsters *monsters) {
-    printf("\n%s monsters.count %d \n", msg, monsters->count);
-    for(int i = 0; i < monsters->count; ++i) {
-        printf("    %d x:%2d y:%2d\n", i, monsters->items[i].x, monsters->items[i].y);
-    }
-}
-
 // :modes
 // :control mode
 typedef struct {
-    bool normal;
-    bool title;
-    bool dialogue;
-    bool debug;
-    bool build;
-    bool intro;
-} ControlMode;
+    bool normal_control;
+    bool normal_display;
+    bool title_control;
+    bool title_display;
+    bool dialogue_control;
+    bool dialogue_display;
+    bool debug_control;
+    bool debug_display;
+    bool build_control;
+    bool intro_control;
+    bool monsters_control;
+    bool jumpscare_display;
+    bool failure_control;
+    bool failure_display;
+} State;
 
-// :display mode
-typedef struct {
-    bool normal;
-    bool title;
-    bool dialogue;
-    bool debug;
-    bool jumpscare;
-    bool failed;
-} DisplayMode;
-
+void changeState(State * state, StateType new_state) {
+    if (new_state == NormalState) {
+        state->dialogue_control     = false;
+        state->normal_control       = true;
+        state->normal_display       = true;
+        state->dialogue_display     = false;
+    }
+    if (new_state == DialogueState) {
+        state->intro_control        = false;
+        state->normal_control       = false;
+        state->dialogue_control     = true;
+        state->dialogue_display     = true;
+    }
+}
 
 // :timer
 typedef enum{
-    JumpscareClock, WaterClock
+    JumpscareClock, WaterClock, FailureClock
 } Clock;
 
 typedef enum {
@@ -142,7 +146,6 @@ typedef struct {
     Direction direction;
     Action action;
 } Player;
-
 
 int int_from_float(float f) {
     int i;
@@ -236,7 +239,6 @@ void game() {
     for(int i = 0; i < monster_max;++i) {
         char filename[100];
         sprintf(filename, "assets/monster%d.png", i);
-
         monster_tex_a[i] = LoadTexture(filename);
     }
 
@@ -244,72 +246,83 @@ void game() {
     Texture2D person_walk_tex       = LoadTexture("assets/devon_walking.png"); 
     
     //:objectTexture
-    Texture2D objectTextureArray[ObjectTypeEnd];
-    objectTextureArray[Table]       = LoadTexture("assets/objects/table.png");
-    objectTextureArray[Chair]       = LoadTexture("assets/objects/chair.png");
-    objectTextureArray[Door]        = LoadTexture("assets/objects/door.png");
-    objectTextureArray[Sink]        = LoadTexture("assets/objects/sink.png");
-    objectTextureArray[Stove]       = LoadTexture("assets/objects/stove.png");
-    objectTextureArray[Counter]     = LoadTexture("assets/objects/counter.png");
-    objectTextureArray[Generator]   = LoadTexture("assets/objects/generator.png");
-    objectTextureArray[Switch]      = LoadTexture("assets/objects/switch.png");
-    objectTextureArray[Fire]        = LoadTexture("assets/objects/fire.png");
-    objectTextureArray[MiniVan]     = LoadTexture("assets/objects/mini_van.png");
-    objectTextureArray[Important]   = LoadTexture("assets/objects/important.png");
-    ObjectType objectTypeLastUsed = Table;
+    Texture2D objectTextures[ObjectTypeEnd];
+    objectTextures[Table]       = LoadTexture("assets/objects/table.png");
+    objectTextures[Chair]       = LoadTexture("assets/objects/chair.png");
+    objectTextures[Door]        = LoadTexture("assets/objects/door.png");
+    objectTextures[Sink]        = LoadTexture("assets/objects/sink.png");
+    objectTextures[Stove]       = LoadTexture("assets/objects/stove.png");
+    objectTextures[Counter]     = LoadTexture("assets/objects/counter.png");
+    objectTextures[Generator]   = LoadTexture("assets/objects/generator.png");
+    objectTextures[Switch]      = LoadTexture("assets/objects/switch.png");
+    objectTextures[Fire]        = LoadTexture("assets/objects/fire.png");
+    objectTextures[MiniVan]     = LoadTexture("assets/objects/mini_van.png");
+    objectTextures[Important]   = LoadTexture("assets/objects/important.png");
 
     // :floor
-    Texture2D floorTextureArray[FloorTypeEnd];
-    floorTextureArray[Tile]         = LoadTexture("assets/floor/tile_floor.png");
-    floorTextureArray[Wood]         = LoadTexture("assets/floor/wood_floor.png");
-    floorTextureArray[Concrete]     = LoadTexture("assets/floor/concrete_floor.png");
-    floorTextureArray[BrokenTile]   = LoadTexture("assets/floor/broken_tile_floor.png");
-    floorTextureArray[Grass]   = LoadTexture("assets/floor/grass_ground.png");
-    floorTextureArray[Asphalt]   = LoadTexture("assets/floor/asphalt_floor.png");
-    floorTextureArray[AsphaltLines]   = LoadTexture("assets/floor/asphalt_w_line.png");
-    floorTextureArray[Sidewalk]   = LoadTexture("assets/floor/sidewalk.png");
-    floorTextureArray[Dirt]   = LoadTexture("assets/floor/dirt.png");
-    floorTextureArray[Water]   = LoadTexture("assets/floor/water_moving.png");
+    Texture2D floorTextures[FloorTypeEnd];
+    floorTextures[Tile]         = LoadTexture("assets/floor/tile_floor.png");
+    floorTextures[Wood]         = LoadTexture("assets/floor/wood_floor.png");
+    floorTextures[Concrete]     = LoadTexture("assets/floor/concrete_floor.png");
+    floorTextures[BrokenTile]   = LoadTexture("assets/floor/broken_tile_floor.png");
+    floorTextures[Grass]        = LoadTexture("assets/floor/grass_ground.png");
+    floorTextures[Asphalt]      = LoadTexture("assets/floor/asphalt_floor.png");
+    floorTextures[AsphaltLines] = LoadTexture("assets/floor/asphalt_w_line.png");
+    floorTextures[Sidewalk]     = LoadTexture("assets/floor/sidewalk.png");
+    floorTextures[Dirt]         = LoadTexture("assets/floor/dirt.png");
+    floorTextures[Water]        = LoadTexture("assets/floor/water_moving.png");
     FloorType floorTypeLastUsed = Tile;
 
+    // :monster
+    Texture2D monsterTextures[MonsterTypeEnd];
+    monsterTextures[BENNY]      = LoadTexture("assets/monsters/1benny_beaver_bear.png");
+    monsterTextures[BUDDY]      = LoadTexture("assets/monsters/2buddy_the_wolf.png");
+    monsterTextures[ALICE]      = LoadTexture("assets/monsters/3alice_the_duck.png");
+    monsterTextures[ALEX]       = LoadTexture("assets/monsters/4alex_the_honeybadger.png");
+    monsterTextures[BOB]        = LoadTexture("assets/monsters/5bob_the_giraffe.png");
+    monsterTextures[DENNIS]     = LoadTexture("assets/monsters/6dennis_the_allegator.png");
+    monsterTextures[DONNY]      = LoadTexture("assets/monsters/7donny_the_dog.png");
 
     // :load sound
     InitAudioDevice(); 
-    Sound monsterScreamSound = LoadSound("assets/sound/monster_scream.ogg");  
+    Sound monsterScreamSound    = LoadSound("assets/sound/monster_scream.ogg");  
+    Sound doorOpenSound         = LoadSound("assets/sound/door_open.ogg");
+    Sound doorCloseSound        = LoadSound("assets/sound/door_close.ogg");
 
-    Sound doorOpenSound = LoadSound("assets/sound/door_open.ogg");
-    Sound doorCloseSound = LoadSound("assets/sound/door_close.ogg");
 
-
-    // :init
+    //
+    // :init 
+    //
     int camera_offset_y = 500;
     int hide_outdoors = 0;
-    ControlMode control_mode;
-        control_mode.normal     = false;
-        control_mode.title      = true;
-        control_mode.intro      = false;
-        control_mode.dialogue   = false;
-        control_mode.debug      = false;
-        control_mode.build      = false;
-    DisplayMode display_mode;
-        display_mode.normal     = true;
-        display_mode.title      = true;
-        display_mode.dialogue   = false;
-        display_mode.failed     = false;
-        display_mode.jumpscare  = false;
-        display_mode.debug      = false;
+    State state;
+        state.normal_control     = false;
+        state.title_control      = true;
+        state.intro_control      = false;
+        state.dialogue_control   = false;
+        state.debug_control      = false;
+        state.build_control      = false;
+        state.monsters_control   = true;
+        state.normal_display     = true;
+        state.title_display      = true;
+        state.dialogue_display   = false;
+        state.failure_display     = false;
+        state.jumpscare_display  = true;
+        state.debug_display      = false;
     int clock[10];
-    clock[WaterClock] = 0;
+    clock[WaterClock]       = 0;
+    clock[JumpscareClock]   = 0;
+    clock[FailureClock]     = 0;
     int timer = 0;
     int frame_long = 0;
     int text_tick = 0;
     int frame_passed = 0;
     int frame = 0;
     int jumpscare = 0;
-    static Monster * collidedMonster = NULL;
-
-    static int noclip = 0;
-    static Player player; 
+    Monster * collidedMonster = NULL;
+    int noclip = 0;
+    float speed = 4.0f; 
+    Player player; 
         player.x            = -11;
         player.y            = -48;
         player.x_dest       = player.x;
@@ -323,27 +336,22 @@ void game() {
         player.x_pixel_dest = player.x_pixel;
         player.direction    = DOWN;
         player.action = STAND;
-    static Objects *objects;
+    Objects *objects;
         objects         = malloc(sizeof(Objects));
         objects->count  = 0;
-    static Monsters *monsters;
-        monsters        = malloc(sizeof(Monsters));
-    static Camera2D camera;
+    Monster monsters[Monster_Max];
+    int monster_count;
+    Camera2D camera;
         camera.rotation     = 0.0f;
         camera.zoom         = 1.5f;
-    static Floors *floors;
+    Floors *floors;
         floors = malloc(sizeof(Floors));
-    static int enemy_timer = 0;
-    static Monster temp_monster;
+    int enemy_timer = 0;
+    Monster temp_monster;
     // :read ground.data
     
     if(!LoadFromFilename((void *)floors, sizeof (Floors), "floor.data")) {
         floors->count      = 0;
-    }
-    // :read monster.data
-
-    if(!LoadFromFilename((void *)monsters, sizeof (Monsters), "monster.data")) {
-        monsters->count      = 0;
     }
 
     // :load objects
@@ -372,33 +380,29 @@ void game() {
         // :control
         // :debug control
         if (IsKeyPressed(KEY_F1)) {
-            display_mode.debug = !display_mode.debug;
+            state.debug_display = !state.debug_display;
         }
 
         // :intro control
-        if (control_mode.intro) {
+        if (state.intro_control) {
             camera_offset_y -= 3;
             if (camera_offset_y < 0) {
                 camera_offset_y = 0;
-                control_mode.intro      = false;
-                control_mode.dialogue   = true;
-
-                display_mode.dialogue   = true;
-
                 strcpy(dialogue_queue[0], "I wish I could do some fishing...");
                 strcpy(dialogue_queue[1], "Too bad I have to get to my new job...");
                 strcpy(dialogue_queue[2], "\0");
+                changeState(&state, DialogueState);
             }
         }
 
         // :build control
-        if (control_mode.build) {
+        if (state.build_control) {
             if(IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_F)) {
                 printf("key_left_shift\n");
                 // Check if object exists at these coordinates
                 int floorExists = 0;
-                for (int floorIndex = 0; floorIndex < floors->count;++floorIndex) {
-                    Floor *floor = &floors->items[floorIndex];
+                for (int i = 0; i < floors->count;++i) {
+                    Floor *floor = &floors->items[i];
                     if (floor->x == player.x && floor->y==player.y) {
                         floorExists = 1;
                         ++floor->type;
@@ -425,8 +429,8 @@ void game() {
             if(!IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_F)) {
                 // Check if object exists at these coordinates
                 int floorExists = 0;
-                for (int floorIndex = 0; floorIndex < floors->count;++floorIndex) {
-                    Floor *floor = &floors->items[floorIndex];
+                for (int i = 0; i < floors->count;++i) {
+                    Floor *floor = &floors->items[i];
                     if (floor->x == player.x && floor->y==player.y) {
                         floorExists = 1;
                         if (floorTypeLastUsed) {
@@ -452,8 +456,8 @@ void game() {
             // :change state of object
             if (IsKeyPressed(KEY_S)) {
                 // Check if object exists at these coordinates
-                for (int objectIndex = 0; objectIndex < objects->count;++objectIndex) {
-                    Object *object = &objects->items[objectIndex];
+                for (int i = 0; i < objects->count;++i) {
+                    Object *object = &objects->items[i];
                     if (object->x == player.x && object->y==player.y) {
                         ++object->actionFrame;
                         if (object->actionFrame >= 4){
@@ -472,8 +476,8 @@ void game() {
             // :change rotation of object
             if (IsKeyPressed(KEY_R)) {
                 // Check if object exists at these coordinates
-                for (int objectIndex = 0; objectIndex < objects->count;++objectIndex) {
-                    Object *object = &objects->items[objectIndex];
+                for (int i = 0; i < objects->count;++i) {
+                    Object *object = &objects->items[i];
                     if (object->x == player.x && object->y==player.y) {
                         ++object->rotation;
                         printf("rotated %d\n", object->rotation);
@@ -492,8 +496,8 @@ void game() {
             if (IsKeyPressed(KEY_O)) {
                 // Check if object exists at these coordinates
                 int objectExists = 0;
-                for (int objectIndex = 0; objectIndex < objects->count;++objectIndex) {
-                    Object *object = &objects->items[objectIndex];
+                for (int i = 0; i < objects->count;++i) {
+                    Object *object = &objects->items[i];
                     if (object->x == player.x && object->y==player.y) {
                         objectExists = 1;
                         ++object->type;
@@ -524,21 +528,20 @@ void game() {
             // :place monster
             int key_pressed = GetKeyPressed();
             if (key_pressed >= 48 && key_pressed <= 57) {
-                if (monsters->count < Monster_Max) {
-                    monsters->items[monsters->count].x = player.x;
-                    monsters->items[monsters->count].y = player.y;
-                    monsters->items[monsters->count].type = key_pressed-48; // 0-9
-                    ++monsters->count;
-                    SaveToFilename((void *) monsters,sizeof(Monsters), "monster.data");
+                if (monster_count < Monster_Max) {
+                    monsters[monster_count].x = player.x;
+                    monsters[monster_count].y = player.y;
+                    monsters[monster_count].type = key_pressed-48; // 0-9
+                    ++monster_count;
                 }
             }
             // :clear
             if(IsKeyDown(KEY_C)) {
-                for (int i = 0; i < monsters->count; ++i) {
-                    if(monsters->items[i].x == player.x &&
-                    monsters->items[i].y == player.y) {
-                        monsters->items[i] = monsters->items[monsters->count - 1];
-                        --monsters->count;
+                for (int i = 0; i < monster_count; ++i) {
+                    if(monsters[i].x == player.x &&
+                    monsters[i].y == player.y) {
+                        monsters[i] = monsters[monster_count - 1];
+                        --monster_count;
                     }
                 }
                 for (int i = 0; i < objects->count; ++i) {
@@ -548,13 +551,12 @@ void game() {
                         --objects->count;
                     }
                 }
-                SaveToFilename((void *)monsters, sizeof(Monsters), "monster.data");
                 SaveToFilename((void *)objects, sizeof(Objects),"objects.data");
             }
         }
 
         // :normal control
-        if (control_mode.normal) {
+        if (state.normal_control) {
             // controls
             if (   up()   && !player.moving_y) {
                 player.direction = UP;
@@ -580,7 +582,6 @@ void game() {
                 player.x_dest   -= 1;
                 player.moving_x = 1;
             }
-            static float speed = 4.0f; 
 
             // :collision
             int collision = 0;
@@ -592,7 +593,6 @@ void game() {
                         if (floor->type != Water) {
                             collision = 0;
                         }
-
                         break;
                     }
                 }
@@ -600,10 +600,10 @@ void game() {
                     collision = 1;
                 }
                 if (collision) {
-                        player.x_dest = player.x;
-                        player.y_dest = player.y;
-                        player.x_pixel_dest = player.x_pixel;
-                        player.y_pixel_dest = player.y_pixel;
+                    player.x_dest = player.x;
+                    player.y_dest = player.y;
+                    player.x_pixel_dest = player.x_pixel;
+                    player.y_pixel_dest = player.y_pixel;
                 }
             }
 
@@ -634,10 +634,7 @@ void game() {
                 strcpy(dialogue_queue[1], "But try as I might, I can't bring myself to step foot into it.");
                 strcpy(dialogue_queue[2], "As if there is an invisible force compelling me...");
                 strcpy(dialogue_queue[3], "\0");
-                // @Todo: This should be moved somewhere.. state control?
-                control_mode.dialogue = true;
-                control_mode.normal = false;
-                display_mode.dialogue = true;
+                changeState(&state, DialogueState);
             }
 
             if (!triggers[Accident] && player.y == -32) {
@@ -646,10 +643,7 @@ void game() {
                 strcpy(dialogue_queue[1], "I hope no ones hurt.");
                 strcpy(dialogue_queue[2], "Though there doesn't seem to be much chance of that...");
                 strcpy(dialogue_queue[3], "\0");
-                // @Todo: This should be moved somewhere.. state control?
-                control_mode.dialogue = true;
-                control_mode.normal = false;
-                display_mode.dialogue = true;
+                changeState(&state, DialogueState);
             }
 
             if (!triggers[DoorEntered] && player.y == -23) {
@@ -665,10 +659,7 @@ void game() {
                 strcpy(dialogue_queue[0], "Dang! The wind slammed the door on me!");
                 strcpy(dialogue_queue[1], "And it won't budge! Guess I'm here till the next shift comes for me..");
                 strcpy(dialogue_queue[2], "\0");
-                // @Todo: This should be moved somewhere.. state control?
-                control_mode.dialogue = true;
-                control_mode.normal = false;
-                display_mode.dialogue = true;
+                changeState(&state, DialogueState);
             }
 
             bool player_stands_on_fire = false;
@@ -685,10 +676,7 @@ void game() {
                 strcpy(dialogue_queue[1], "My whole body is on fire!!");
                 strcpy(dialogue_queue[2], "...I hope this won't make me late for work.");
                 strcpy(dialogue_queue[3], "\0");
-                // @Todo: This should be moved somewhere.. state control?
-                control_mode.dialogue = true;
-                control_mode.normal = false;
-                display_mode.dialogue = true;
+                changeState(&state, DialogueState);
             }
             if (triggers[EnterFire]  && !triggers[LeaveFire] && !player_stands_on_fire) {
                 triggers[LeaveFire] = true;
@@ -696,10 +684,7 @@ void game() {
                 strcpy(dialogue_queue[1], "Good thing I wore my fireproof clothes!");
                 strcpy(dialogue_queue[2], "...and fireproof facecream.");
                 strcpy(dialogue_queue[3], "\0");
-                // @Todo: This should be moved somewhere.. state control?
-                control_mode.dialogue = true;
-                control_mode.normal = false;
-                display_mode.dialogue = true;
+                changeState(&state, DialogueState);
             }
 
             bool player_stands_car = false;
@@ -716,10 +701,7 @@ void game() {
                 strcpy(dialogue_queue[1], "I'm sure they'll be fine though.");
                 strcpy(dialogue_queue[2], "...once a tiny ambulance arrives.");
                 strcpy(dialogue_queue[3], "\0");
-                // @Todo: This should be moved somewhere.. state control?
-                control_mode.dialogue = true;
-                control_mode.normal = false;
-                display_mode.dialogue = true;
+                changeState(&state, DialogueState);
             }
 
 
@@ -729,10 +711,7 @@ void game() {
                 strcpy(dialogue_queue[1], "How could they let it get this way?");
                 strcpy(dialogue_queue[2], "...Unless this just happened?");
                 strcpy(dialogue_queue[3], "\0");
-                // @Todo: This should be moved somewhere.. state control?
-                control_mode.dialogue = true;
-                control_mode.normal = false;
-                display_mode.dialogue = true;
+                changeState(&state, DialogueState);
             }
 
             if (!triggers[SeeGenerator] && player.x == -2  && player.y == 3) {
@@ -740,16 +719,13 @@ void game() {
                 strcpy(dialogue_queue[0], "What an odd place for a generator..");
                 strcpy(dialogue_queue[1], "Who designed this place?");
                 strcpy(dialogue_queue[2], "\0");
-                // @Todo: This should be moved somewhere.. state control?
-                control_mode.dialogue = true;
-                control_mode.normal = false;
-                display_mode.dialogue = true;
+                changeState(&state, DialogueState);
                 // create monster.. x:-12 y:3
-                if (monsters->count < Monster_Max) {
-                    monsters->items[monsters->count].x = player.x - 10;
-                    monsters->items[monsters->count].y = player.y;
-                    monsters->items[monsters->count].type = 0; // 0-9
-                    ++monsters->count;
+                if (monster_count < Monster_Max) {
+                    monsters[monster_count].x = player.x - 10;
+                    monsters[monster_count].y = player.y;
+                    monsters[monster_count].type = 0; // 0-9
+                    ++monster_count;
                 }
             }
             
@@ -758,10 +734,7 @@ void game() {
                 strcpy(dialogue_queue[0], "I can pass right through doors!");
                 strcpy(dialogue_queue[1], "No wonder this place is so drafty.");
                 strcpy(dialogue_queue[2], "\0");
-                // @Todo: This should be moved somewhere.. state control?
-                control_mode.dialogue = true;
-                control_mode.normal = false;
-                display_mode.dialogue = true;
+                changeState(&state, DialogueState);
             }
 
             if (!triggers[SeeFireplace] && player.x == -28  && player.y == -7) {
@@ -769,10 +742,7 @@ void game() {
                 strcpy(dialogue_queue[0], "Someone left the fireplace going!");
                 strcpy(dialogue_queue[1], "They must of left in a hurry..");
                 strcpy(dialogue_queue[2], "\0");
-                // @Todo: This should be moved somewhere.. state control?
-                control_mode.dialogue = true;
-                control_mode.normal = false;
-                display_mode.dialogue = true;
+                changeState(&state, DialogueState);
             }
 
             if (!triggers[SeeSecret] && player.x == -2  && player.y == 20) {
@@ -781,110 +751,93 @@ void game() {
                 strcpy(dialogue_queue[1], "Wait a mi--");
                 strcpy(dialogue_queue[2], "..I can see through walls!");
                 strcpy(dialogue_queue[3], "\0");
-                // @Todo: This should be moved somewhere.. state control?
-                control_mode.dialogue = true;
-                control_mode.normal = false;
-                display_mode.dialogue = true;
+                changeState(&state, DialogueState);
             }
-
-
-           // :spacebar
-            // :action
-            // :shoot
-#define MonsterDead 9
-#if 0
-            if (actionPressed()) {
-                if (player.direction == RIGHT) {
-                    // @Todo: Add back in shooting rectangle
-                    for (int i = 0; i < 10; ++i) {
-                        for (int mi = 0; mi < monsters->count; ++mi) {
-                            Monster * monster = &monsters->items[mi];
-                            if (monster->x == player.x + i && monster->y == player.y) {
-                                monster->type = MonsterDead;
-                            goto ShootingDone;
-                            }
-                        }
-                    }
-                }
-                if (player.direction == LEFT) {
-                    // @Todo: Add back in shooting rectangle
-                    for (int i = 0; i < 10; ++i) {
-                        for (int mi = 0; mi < monsters->count; ++mi) {
-                            Monster * monster = &monsters->items[mi];
-                            if (monster->x == player.x - i && monster->y == player.y) {
-                                monster->type = MonsterDead;
-                                goto ShootingDone;
-                            }
-                        }
-
-                    }
-                }
-                if (player.direction == UP) {
-                    // @Todo: Add back in shooting rectangle
-                    for (int i = 0; i < 10; ++i) {
-                        for (int mi = 0; mi < monsters->count; ++mi) {
-                            Monster * monster = &monsters->items[mi];
-                            if (monster->y == player.y - i && monster->x == player.x) {
-                                monster->type = MonsterDead;
-                                goto ShootingDone;
-                            }
-                        }
-
-                    }
-                }
-                if (player.direction == DOWN) {
-                    // @Todo: Add back in shooting rectangle
-                    for (int i = 0; i < 10; ++i) {
-                        for (int mi = 0; mi < monsters->count; ++mi) {
-                            Monster * monster = &monsters->items[mi];
-                            if (monster->y == player.y + i && monster->x == player.x) {
-                                monster->type = MonsterDead;
-                                goto ShootingDone;
-                            }
-                        }
-
-                    }
-                }
-
-            }
-            ShootingDone:;
-#endif
-                         
-
 
         } // normal control
 
         // :dialogue control
-        if (control_mode.dialogue) {
+        if (state.dialogue_control) {
             if (IsKeyPressed(KEY_ENTER)) {
                 dialogue_index++;
                 text_tick = 0;
                 if (dialogue_queue[dialogue_index][0] == '\0') {
                     strcpy(dialogue_queue[0], "\0");
                     dialogue_index = 0;
-                    control_mode.dialogue   = false;
-                    control_mode.normal     = true;
-                    display_mode.normal     = true;
-                    display_mode.dialogue   = false;
+                    changeState(&state, NormalState);
                 } 
             }
         }
+        if (state.failure_control) {
+            if (IsKeyPressed(KEY_R)) {
+                exit(1);
+            }
+        }
         // :title control
-        if (control_mode.title) {
+        if (state.title_control) {
+            // :build selection
             if (IsKeyPressed(KEY_B)) {
                 camera_offset_y = 0;
-                control_mode.build      = true;
-                control_mode.title      = false;
+                state.build_control      = true;
+                state.title_control      = false;
+                state.normal_control     = true;
 
-                display_mode.title      = false;
-                display_mode.normal     = true;
+                state.title_display      = false;
+                state.jumpscare_display  = false;
+                state.normal_display     = true;
             }
             if (IsKeyPressed(KEY_ENTER)) {
-                control_mode.title      = false;
-                control_mode.intro      = true;
+                state.title_control      = false;
+                state.intro_control      = true;
 
-                display_mode.title      = false;
-                display_mode.normal     = true;
+                state.title_display      = false;
+                state.normal_display     = true;
+            }
+        }
+
+        // :monsters control
+        if (state.monsters_control) {
+            // :move monsters
+            ++enemy_timer;
+            int enemy_speed = 40;
+            if (enemy_timer > enemy_speed && !noclip) {
+                for (int i = 0; i < monster_count; ++i) {
+                    Monster * monster = &monsters[i];
+                    memcpy(&temp_monster,monster, sizeof(Monster));
+                    enemy_timer = 0;
+                    if (monster->x > player.x) {
+                        monster->x--;
+                    }
+                    if (monster->x < player.x) {
+                        monster->x++;
+                    }
+                    if (monster->y < player.y) {
+                        monster->y++;
+                    }
+                    if (monster->y > player.y) {
+                        monster->y--;
+                    }
+
+                    for (int n = 0; n < monster_count; ++n) {
+                        Monster * monster2 = &monsters[n];
+                        if (n == i) continue;
+                        if (monster2->x == monster->x && monster->y == monster2->y) {
+                            memcpy(monster, &temp_monster, sizeof(Monster));
+                            break;
+                        }
+
+                    }
+                    int collision = 1;
+                    for(int w = 0; w < floors->count; ++w) {
+                        if (floors->items[w].x == monster->x && floors->items[w].y == monster->y) {
+                            collision = 0;
+                            break;
+                        }
+                    }
+                    if (collision) {
+                        memcpy(monster, &temp_monster, sizeof(Monster));
+                    }
+                }
             }
         }
 
@@ -892,7 +845,7 @@ void game() {
         BeginDrawing();
         ClearBackground(BLACK);
 
-        if (display_mode.normal) {
+        if (state.normal_display) {
             // :timers
             if(frame_long % 30 == 0) {
                 clock[WaterClock]++;
@@ -905,10 +858,8 @@ void game() {
 
             // :animate objects
             if (timer % 20 == 0) {
-                for (int objectIndex = 0; 
-                       objectIndex < objects->count; 
-                       ++objectIndex) {
-                    Object * object = &objects->items[objectIndex];
+                for (int i = 0; i < objects->count; ++i) {
+                    Object * object = &objects->items[i];
                     if (object->type == Generator) {
                         if (object->actionFrame <= 3) {
                             object->actionFrame++;
@@ -947,129 +898,39 @@ void game() {
                 ++frame;
                 if (frame > 4) frame = 0;
             }
-
-            // :move monsters
-                    ++enemy_timer;
-                    int enemy_speed = 40;
-#define SethIndex 2
-#define DoorIndex 8
-                    if (enemy_timer > enemy_speed && !noclip) {
-                        for (int i = 0; i < monsters->count; ++i) {
-                            Monster * monster = &monsters->items[i];
-                            memcpy(&temp_monster,monster, sizeof(Monster));
-                            enemy_timer = 0;
-                            if (monster->type == MonsterDead) { 
-                            }else if (monster->type == SethIndex) { 
-                                monster->x = (int)player.x  - 5 + (rand() % 10);
-                                monster->y = (int)player.y  - 3 + (rand() % 6);
-                            } else {
-                                if (monster->x > player.x) {
-                                    monster->x--;
-                                }
-                                if (monster->x < player.x) {
-                                    monster->x++;
-                                }
-                                if (monster->y < player.y) {
-                                    monster->y++;
-                                }
-                                if (monster->y > player.y) {
-                                    monster->y--;
-                                }
-                            }
-                            for (int n = 0; n < monsters->count; ++n) {
-                                Monster * monster2 = &monsters->items[n];
-                                if (n == i) continue;
-                                if (monster2->x == monster->x && monster->y == monster2->y) {
-                                    memcpy(monster, &temp_monster, sizeof(Monster));
-                                    break;
-                                }
-
-                            }
-                            int collision = 1;
-                            for(int w = 0; w < floors->count; ++w) {
-                                if (floors->items[w].x == monster->x && floors->items[w].y == monster->y) {
-                                    collision = 0;
-                                    break;
-                                }
-                            }
-                            if (collision) {
-                                memcpy(monster, &temp_monster, sizeof(Monster));
-                            }
-                        }
-                    }
-
             BeginMode2D(camera);
                 //   :draw floor 
-                for (int floorIndex = 0; 
-                       floorIndex < floors->count; 
-                       ++floorIndex) {
-                    Floor * floor = &floors->items[floorIndex];
+                for (int i = 0; i < floors->count; ++i) {
+                    Floor * floor = &floors->items[i];
                     if (floor->y < -24 && hide_outdoors) {
                         // skip drwaing outdoors
                     }
                     else if (floor->type == Water) {
-
-                        DrawTexturePro(floorTextureArray[Water], (Rectangle) { 16 * clock[WaterClock], 0, 16, 16 }, RectanglePixelsFromXYCoords(floor->x, floor->y, Tile_Size), (Vector2){0,0}, 0, WHITE);
-
-                        //DrawTextureEx(floorTextureArray[floor->type], Vector2PixelsFromXYCoords(floor->x, floor->y), 0, 4, WHITE);
+                        DrawTexturePro(floorTextures[Water], (Rectangle) { 16 * clock[WaterClock], 0, 16, 16 }, RectanglePixelsFromXYCoords(floor->x, floor->y, Tile_Size), (Vector2){0,0}, 0, WHITE);
                     }
                     else if (floor->type != Blank) {
-                        DrawTextureEx(floorTextureArray[floor->type], Vector2PixelsFromXYCoords(floor->x, floor->y), 0, 4, WHITE);
+                        DrawTextureEx(floorTextures[floor->type], Vector2PixelsFromXYCoords(floor->x, floor->y), 0, 4, WHITE);
                     }
                 }
                 //   :draw objects
-                for (int objectIndex = 0; 
-                       objectIndex < objects->count; 
-                       ++objectIndex) {
-                    Object * object = &objects->items[objectIndex];
-                    // horizontal - all object should have orientation.. North East South West
-                    // vertical - different states,
-                    // - door is closed
-                    // - door is opening
-                    // - door is open
-                    // - DOOR IS CLOSING
-                    // - switch is on
-                    // - switch is turning off
-                    // - switch is off
-                    // - switch is turning on
-                    // - oven is on
-                    // void DrawTexturePro(Texture2D texture, Rectangle sourceRec, Vector2 position, Color tint);
+                for (int i = 0; i < objects->count; ++i) {
+                    Object * object = &objects->items[i];
                     if (object->y < -24 && hide_outdoors) {
                         // skip drwaing outdoors
                     }
                     else {
-                        DrawTexturePro(objectTextureArray[object->type],  (Rectangle){ object->actionFrame * 16, object->rotation * 16,16,16}, RectanglePixelsFromXYCoords(object->x, object->y, Tile_Size), (Vector2){0,0}, 0, WHITE);
+                        DrawTexturePro(objectTextures[object->type],  (Rectangle){ object->actionFrame * 16, object->rotation * 16,16,16}, RectanglePixelsFromXYCoords(object->x, object->y, Tile_Size), (Vector2){0,0}, 0, WHITE);
                     }
                 }
+
                 // :draw monster
-                for (int monsterIndex = 0; 
-                        monsterIndex < monsters->count; 
-                        ++monsterIndex) {
-                    Monster * monster = &monsters->items[monsterIndex];
-                    if(enemy_timer > 30 && monster->type == SethIndex) {
-                        DrawRectangle(monster->x*64 - 64, monster->y * 64 -64, 260,32, (Color) {37,75,165,255});
-                        DrawText("Would you like a glass of SHUT UP NOW?",
-                            monster->x * 64 - 54, // xpos
-                            monster->y * 64 - 52,
-                            12, // fontsize
-                            WHITE
-                        );
-                    }
-                    // @Todo: convert this to a variable or something
-#define BarneyIndex 1
-                    if(monster->type == BarneyIndex) {
-                        DrawRectangle(monster->x*64 - 64, monster->y * 64 -64, 240,32, (Color) {165,37,165,255});
-                        DrawText("I love you. You love me..",
-                            monster->x * 64 - 54, // xpos
-                            monster->y * 64 - 52,
-                            12, // fontsize
-                            WHITE
-                        );
-                    }
+                for (int i = 0; i < monster_count; ++i) {
+                    Monster * monster = &monsters[i];
                     DrawTextureEx(monster_tex_a[monster->type], (Vector2) { monster->x * 64, monster->y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
                 } 
+
                 // :draw player
-                static Rectangle player_rect; 
+                Rectangle player_rect; 
                 player_rect.height = Tile_Size;
                 player_rect.width = Tile_Size;
                 player_rect.x = player.x_pixel;
@@ -1084,40 +945,22 @@ void game() {
                 }
             EndMode2D();
 
-            // :jumpscare
-            // @todo: compress
-            for (int monsterIndex = 0; 
-                monsterIndex < monsters->count; 
-                ++monsterIndex) {
-                Monster * monster = &monsters->items[monsterIndex];
-                if (monster->x == player.x && monster->y == player.y) {
-                    control_mode.normal = false;
-                    display_mode.normal = false;
-                    display_mode.jumpscare = true;
-                    collidedMonster = monster;
-                    clock[JumpscareClock] = 0;
-                    break;
-                }
-            }
-
-        } // display_mode.normal
-
-
-        if (display_mode.title) {
+        } // state.normal_display
+        if (state.title_display) {
             PrintData print_data;
                 print_data.cursor.x =  screen.x/2 - 450;
                 print_data.cursor.y = 100;
                 print_data.fontsize = 60;
                 print_data.height   = 70;
                 print_data.color    = WHITE;
-            print("Five Nights at YouTube Factory", &print_data);
-            print_data.fontsize = 46;
+            print("Five Nights at Benny's Pizzeria", &print_data);
+            print_data.fontsize = 30;
             print("A Horror Pixel Production", &print_data);
             print_data.fontsize = 23;
             print("Press Enter to Play", &print_data);
         }
 // :dialogue display
-        if (display_mode.dialogue) {
+        if (state.dialogue_display) {
             PrintData print_data;
                 print_data.cursor.x = screen.x /2 + 100 ;
                 print_data.cursor.y = 250;
@@ -1137,7 +980,10 @@ void game() {
             // -33 car accident
             print(text, &print_data);
         }
-        if (display_mode.jumpscare) {
+
+        // :jumpscare display
+        // @todo finish this it's currently broken
+        if (state.jumpscare_display) {
             clock[JumpscareClock]++;
             if (clock[JumpscareClock] < 40) {
                 if (!IsSoundPlaying(monsterScreamSound)) {
@@ -1145,23 +991,33 @@ void game() {
                 }
                 DrawRectangle(0,0,screen.x, screen.y, BLACK);
                 DrawRectangle(0,0,screen.x, screen.y, Fade(RED,(rand() %100)/100.0f));
-                if (collidedMonster) {
-                    DrawTexturePro(monster_tex_a[collidedMonster->type], 
-                     /* src    */   (Rectangle) { 0,      0,   16,   16 }, 
-                     /* dest   */   (Rectangle) { 612,  512, 1024, 1024 },
-                     /* origin   */ (Vector2)   { 512,  512},             
-                     /* rotation */ -8 +(rand() % 16),  /* tint */ WHITE);
+                // :jumpscare
+                for (int i = 0; i < monster_count; ++i) {
+                    Monster * monster = &monsters[i];
+                    if (monster->x == player.x && monster->y == player.y) {
+                        state.normal_control = false;
+                        state.normal_display = false;
+                        state.jumpscare_display = true;
+                        DrawTexturePro(monster_tex_a[monster->type], 
+                         /* src    */   (Rectangle) { 0,      0,   16,   16 }, 
+                         /* dest   */   (Rectangle) { 612,  512, 1024, 1024 },
+                         /* origin   */ (Vector2)   { 512,  512},             
+                         /* rotation */ -8 +(rand() % 16),  /* tint */ WHITE);
+                        break;
+                    }
                 }
             } 
             else {
-                display_mode.failed = true;
-                display_mode.jumpscare = false;
-                display_mode.normal = false;
+                state.failure_display = true;
+                state.jumpscare_display = false;
+                state.normal_display = false;
                 StopSound(monsterScreamSound);
             }
         }
 
-        if (display_mode.failed) {
+        // :failure display
+        if (state.failure_display) {
+            clock[FailureClock]++;
             PrintData print_data;
                 print_data.cursor.x =  screen.x/2 - 450;
                 print_data.cursor.y = 100;
@@ -1171,34 +1027,34 @@ void game() {
             print("You were Eaten", &print_data);
             print_data.fontsize = 46;
             print("Now you'll never solve the mystery.", &print_data);
+            if (clock[FailureClock] < 80) {
+                print("Type R to Restart", &print_data);
+                state.failure_control = true;
+            }
         }
 
         // :debug display
-        if (display_mode.debug) {
+        if (state.debug_display) {
             PrintData print_data;
                 print_data.cursor.x =  20;
                 print_data.cursor.y = 20;
                 print_data.fontsize = 18;
                 print_data.height   = 25;
                 print_data.color    = WHITE;
-
-
             DrawRectangle(0, 0, 300,600, Fade(BLACK, 0.5));
             char text[40];
             sprintf(text, "X: %d Y: %d", player.x, player.y);
             print(text, &print_data);
-            if (control_mode.title) print("control title", &print_data); 
-            if (control_mode.normal) print("control normal", &print_data); 
-            if (control_mode.dialogue) print("control dialogue", &print_data); 
-            if (display_mode.title) print("display title", &print_data); 
-            if (display_mode.normal) print("display normal", &print_data); 
-            if (display_mode.dialogue) print("display dialogue", &print_data); 
-            for (int objectIndex = 0; 
-                   objectIndex < objects->count; 
-                   ++objectIndex) {
-                Object * object = &objects->items[objectIndex];
+            if (state.title_control) print("control title", &print_data); 
+            if (state.normal_control) print("control normal", &print_data); 
+            if (state.dialogue_control) print("control dialogue", &print_data); 
+            if (state.title_display) print("display title", &print_data); 
+            if (state.normal_display) print("display normal", &print_data); 
+            if (state.dialogue_display) print("display dialogue", &print_data); 
+            for (int i = 0; i < objects->count; ++i) {
+                Object * object = &objects->items[i];
                 if (player.x == object->x && player.y == object->y) {
-                    sprintf(text, "objectIndex: %d", objectIndex);
+                    sprintf(text, "i: %d", i);
                     print(text, &print_data);
                 }
 
