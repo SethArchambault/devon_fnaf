@@ -16,12 +16,6 @@ typedef enum {
     BENNY, BUDDY, ALICE, ALEX, BOB, DENNIS, DONNY, MonsterTypeEnd
 } MonsterType;
 
-// :monster
-typedef struct {
-    int x;
-    int y;
-    int type; // 0-9
-} Monster;
 
 // :action
 typedef enum {
@@ -32,6 +26,21 @@ typedef enum {
 typedef enum {
     UP, RIGHT, DOWN, LEFT
 } Direction;
+
+// :monster
+typedef struct {
+    int x;
+    int y;
+    int type; // 0-9
+    Direction direction;
+} Monster;
+
+// :monster direction
+typedef struct{
+    int x;
+    int y;
+    Direction direction;
+} MonsterDirection;
 
 // :player
 typedef struct {
@@ -77,6 +86,8 @@ typedef struct {
     int failure_control;
     int failure_display;
     Monster monsters[Monster_Max];
+    MonsterDirection monster_directions[Monster_Max];
+    int monster_direction_count;
     int monster_count;
     int monsters_loaded;
     Texture2D monsterTextures[MonsterTypeEnd];

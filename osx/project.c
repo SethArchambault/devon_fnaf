@@ -788,7 +788,7 @@ void game() {
 
         // :monsters control
         if (state.monsters_control) {
-            // :move monsters
+            // :monster movement
             ++enemy_timer;
             int enemy_speed = 40;
             if (enemy_timer > enemy_speed && !noclip) {
@@ -796,17 +796,40 @@ void game() {
                     Monster * monster = &monsters[i];
                     memcpy(&temp_monster,monster, sizeof(Monster));
                     enemy_timer = 0;
-                    if (monster->x > player->x) {
-                        monster->x--;
+
+                    int monster_follow_player = 0;
+                    if (monster->y == player->y) {
+                        monster_follow_player = 1;
                     }
-                    if (monster->x < player->x) {
-                        monster->x++;
-                    }
-                    if (monster->y < player->y) {
-                        monster->y++;
-                    }
-                    if (monster->y > player->y) {
-                        monster->y--;
+                    // :monster follow player
+                    if (monster_follow_player) {
+                        if (monster->x > player->x) {
+                            monster->x--;
+                        }
+                        if (monster->x < player->x) {
+                            monster->x++;
+                        }
+                        if (monster->y < player->y) {
+                            monster->y++;
+                        }
+                        if (monster->y > player->y) {
+                            monster->y--;
+                        }
+                    } else { // :monster random movement
+                        int random_number = rand() %4;
+                        printf("%d\n", random_number);
+                        if (random_number == 0) {
+                            monster->x += 1;
+                        }
+                        if (random_number == 1) {
+                            monster->x -= 1;
+                        }
+                        if (random_number == 2) {
+                            monster->y += 1;
+                        }
+                        if (random_number == 3) {
+                            monster->y -= 1;
+                        }
                     }
 
                     for (int n = 0; n < *monster_count; ++n) {
