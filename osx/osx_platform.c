@@ -1,5 +1,5 @@
 
-#include "raylib.h"
+#include <raylib.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <math.h>
@@ -81,5 +81,6 @@ bool actionPressed() {
 #include "project.c"
 
 int main() {
-        game();
+    game();
 }
+

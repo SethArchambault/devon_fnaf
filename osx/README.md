@@ -1,47 +1,34 @@
+Sat
 
-ideas
+- [ ] Task list
+- [x] new font
 
- - eneimies can make thinks mobile
- - build your own pizza ria simulation
- - make the draw mode load pngs?
-
-- game_stuff image make them individual 
- * notes: 
- * - png, y - different direction x - animation / different states
- * footstep sound
- * https://www.youtube.com/watch?v=btiw_49DeUU
+later
  *  12am-6am 25 minutes long in real time
- *  they move periodically, but they don't start moving till 3pm
- *  you can walk around. 
+
+game notes 
  *  close the security doors
  *  light switches to scare them away
  *  you turn on the generator to activate the camera and the doors, clock is powered by the generator
  *  clock is like a real clock in the game
  *  the doors close behind you and lock 
- *  newspaper 
  *  welcome to beaver bears pizzaria - home of the best beaver bear in town
  *  some atmospheric sounds
- *
-he looks mangled and dirty
-all of them
+* he looks mangled and dirty
+* all of them
+
+my old ideas
+
+ - eneimies can make thinks mobile
+ - build your own pizza ria simulation
 
 - door logic
-- pathfinding
 - each door has a light
-- slower
-- time goes hour to hour
-- pops up on the hour, doesn't show minutes
-- stop showing the time 
-- 15 minutes for an hour
 - find stuff to get the door unlocked
 
 - make it so everything is darker until the lights are turned on
 
-main character is no longer an employee, they are a kid who wanders in
-
 enemies:
-- only 3 animatronics kill you, the rest just bring your fear gauge up
-- ones that kill you: Dark figures, giraffe, Benny 
 - Benny is the only one where your fear gauge goes up as you get near him
 
 first night
@@ -114,7 +101,6 @@ epilogue:
 
 Business:
 - hire a professional artist
-- 
 
 Price Range:
 - 
@@ -140,5 +126,27 @@ plot
 	- The wifi password is over to the side 
 - once you get on wifi, you start to get text messages
 
-alllowercaseoneword
- *  */
+
+
+# Log
+
+> 4.13.2019
+
+> 4.7.2019
+
+Okay so the pathfinding would be really cool!
+However, I don't want have to start over from the beginning every single time.
+I guess for now, I could hack it.
+Set monster to pathfinding mode, make everyone go random.
+
+- [x] pathfinding
+- [x] time goes hour to hour
+- [x] stop showing the time 
+- [x] pops up on the hour, doesn't show minutes
+- [x] 15 minutes for an hour
+- [x] fear mode
+- [x] create a fear meter
+- [x] only 3 animatronics kill you, the rest just bring your fear gauge up
+    - ones that kill you: Dark figures, giraffe, Benny 
+
+
