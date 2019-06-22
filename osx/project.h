@@ -33,6 +33,7 @@ typedef struct {
     int y;
     int type; // 0-9
     Direction direction;
+    int mode; // 0-3
 } Monster;
 
 // :monster direction

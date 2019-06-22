@@ -21,12 +21,22 @@
 typedef void LIVE(State *);
 
 
+void transport_player(int x, int y, Player *player) {
+    player->x = x;
+    player->x_dest       = player->x;
+    player->x_pixel = player->x * Tile_Size;
+    player->x_pixel_dest = player->x_pixel;
+    player->y = y;
+    player->y_dest       = player->y;
+    player->y_pixel = player->y * Tile_Size;
+    player->y_pixel_dest = player->y_pixel;
+}
+
 
 // :floor type
 typedef enum {
     Wood, Tile, Concrete, BrokenTile, Blank, Grass, Asphalt, AsphaltLines, Sidewalk, Dirt, Water, FloorTypeEnd
 } FloorType;
-
 // :object
 typedef enum {
     Table, Door, Chair, Sink, Stove, Counter, Generator, Switch, Fire, MiniVan, Important, Newspaper, ObjectTypeEnd
@@ -239,6 +249,7 @@ void game() {
     // @Performance: For some reason, loading the textures here, and then reloading later is more performant than just loading later
     Texture2D * monsterTextures = &state.monsterTextures[0];
         monsterTextures[BENNY]      = LoadTexture("assets/monsters/1benny_beaver_bear.png");
+        Texture2D benny_angry_tex      = LoadTexture("assets/monsters/1benny_beaver_bear2.png");
         monsterTextures[BUDDY]      = LoadTexture("assets/monsters/2buddy_the_wolf.png");
         monsterTextures[ALICE]      = LoadTexture("assets/monsters/3alice_the_duck.png");
         monsterTextures[ALEX]       = LoadTexture("assets/monsters/4alex_the_honeybadger.png");
@@ -610,6 +621,7 @@ void game() {
                     AddDialogue(dialogue_queue, "You basically wait in a room all night, until they come\nfor you.\"");
                     AddDialogue(dialogue_queue, "When asked \"Who comes for you?\", the security guard\nlet out a groan, and died on the spot.");
                     changeState(&state, DialogueState);
+                    // :monster create
                     // create monster.. x:-12 y:3
                     /* 
                     if (*monster_count < Monster_Max) {
@@ -776,13 +788,22 @@ void game() {
                 state.title_display      = 0;
                 state.jumpscare_active   = 0;
                 state.normal_display     = 1;
+                state.monsters_control    = 1;
+                transport_player(-9,-22, player);
+                
             }
             if (IsKeyPressed(KEY_ENTER)) {
                 state.title_control      = 0;
                 state.intro_control      = 1;
 
+
+                /* instant play mode */
+                state.jumpscare_active   = 1;
                 state.title_display      = 0;
                 state.normal_display     = 1;
+                state.monsters_control    = 1;
+                camera_offset_y = 0;
+                transport_player(-9,-22, player);
             }
         }
 
@@ -790,7 +811,7 @@ void game() {
         if (state.monsters_control) {
             // :monster movement
             ++enemy_timer;
-            int enemy_speed = 40;
+            int enemy_speed = 50;
             if (enemy_timer > enemy_speed && !noclip) {
                 for (int i = 0; i < *monster_count; ++i) {
                     Monster * monster = &monsters[i];
@@ -798,8 +819,37 @@ void game() {
                     enemy_timer = 0;
 
                     int monster_follow_player = 0;
-                    if (monster->y == player->y) {
-                        monster_follow_player = 1;
+
+                    if (monster->type == BENNY) {
+                                monster->mode = 0;
+                        if (monster->y == player->y) {
+                            int random_number = rand() %5;
+                            if (random_number != 0) {
+                                monster_follow_player = 1;
+                                monster->mode = 1;
+                            }
+                        } 
+                        else {
+                            int random_number = rand() %3;
+                            if (random_number == 0) {
+                                monster_follow_player = 1;
+                                monster->mode = 1;
+                            }
+                        }
+                    }
+                    else {
+                        if (monster->y == player->y) {
+                            int random_number = rand() %3;
+                            if (random_number != 0) {
+                                monster_follow_player = 1;
+                            }
+                        } 
+                        else {
+                            int random_number = rand() %5;
+                            if (random_number == 0) {
+                                monster_follow_player = 1;
+                            }
+                        }
                     }
                     // :monster follow player
                     if (monster_follow_player) {
@@ -940,7 +990,12 @@ void game() {
                 // :monster draw
                 for (int i = 0; i < *monster_count; ++i) {
                     Monster * monster = &monsters[i];
+                    if (monster->type == BENNY && monster->mode == 1) {
+                        DrawTextureEx(benny_angry_tex, (Vector2) { monster->x * 64, monster->y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
+                    }
+                    else {
                     DrawTextureEx(monsterTextures[monster->type], (Vector2) { monster->x * 64, monster->y * Tile_Size - Tile_Size / 4  }, 0, 4, WHITE);
+                    }
                 } 
 
                 // :draw player
@@ -1019,8 +1074,12 @@ void game() {
                     //DrawRectangle(0,0,screen.x, screen.y, Fade(RED,(rand() %100)/100.0f));
                     DrawRectangle(0,0,screen.x, screen.y, RED);
 
-                    DrawTexturePro(monsterTextures[monster->type], (Rectangle) { 0, 0, 16,   16 }, (Rectangle) { 612,  512, 1024, 1024 }, (Vector2) { 512,  512}, -8 +(16),  WHITE);
-                    // DrawTexturePro(monsterTextures[monster->type], (Rectangle) { 0, 0, 16,   16 }, (Rectangle) { 612,  512, 1024, 1024 }, (Vector2) { 512,  512}, -8 +(rand() % 16),  WHITE);
+                    if (monster->type == BENNY) {
+                        DrawTexturePro(benny_angry_tex, (Rectangle) { 0, 0, 16,   16 }, (Rectangle) { 612,  512, 1024, 1024 }, (Vector2) { 512,  512}, -8 +(16),  WHITE);
+                    }
+                    else {
+                        DrawTexturePro(monsterTextures[monster->type], (Rectangle) { 0, 0, 16,   16 }, (Rectangle) { 612,  512, 1024, 1024 }, (Vector2) { 512,  512}, -8 +(16),  WHITE);
+                    }
                     // :jumpscare
                 } 
                 else {
