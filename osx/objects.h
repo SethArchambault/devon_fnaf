@@ -7,7 +7,7 @@ void ObjectLoad(Object *objects, int *object_count) {
         {-2, -3, Counter, 2, 0},
         {-5, -3, Counter, 0, 0},
         {4, -5, Table, 3, 2},
-        {0, 3, Generator, 1, 3},
+        {0, 3, Generator, 1, 2},
         {3, -5, Chair, 3, 1},
         {-7, -7, Table, 0, 0},
         {4, -4, Chair, 2, 3},
@@ -16,12 +16,12 @@ void ObjectLoad(Object *objects, int *object_count) {
         {-2, 3, Important, 0, 0},
         {-9, -24, Door, 2, 0},
         {-32, -9, Stove, 3, 0},
-        {-33, -9, Stove, 3051, 0},
-        {-34, -9, Sink, 41184, 0},
+        {-33, -9, Stove, 3, 0},
+        {-34, -9, Sink, 4, 0},
         {-35, -9, Sink, 0, 0},
         {-36, -9, Counter, 1, 3},
-        {-36, -8, Counter, 1, 4160},
-        {-43, -4, Generator, 0, 0},
+        {-36, -8, Counter, 1, 1},
+        {-43, -4, Generator, 0, 3},
         {-39, 0, Door, 0, 0},
         {-29, -8, Fire, 3, 0},
         {-8, -30, MiniVan, 0, 1},
@@ -34,12 +34,10 @@ void ObjectLoad(Object *objects, int *object_count) {
         {-5, -15, Important, 0, 2},
         {22, -6, Door, 0, 0},
         {12, -8, Important, 0, 1},
-        {-28, -7, Important, 0, 53827},
-        {-6, -20, Newspaper, 2452, 760},
-        {-12, 18, Newspaper, 3511, 1},
-        {-16, 16, ObjectTypeEnd, 3511, 3},
-        {-9, 16, ObjectTypeEnd, 3511, 0},
+        {-28, -7, Important, 0, 1},
+        {-6, -20, Newspaper, 1, 1},
+        {-12, 18, Newspaper, 1, 1},
     };
-    *object_count = 39;
+    *object_count = sizeof(_objects) / sizeof(Object);
     memcpy(objects, &_objects, sizeof(Object) * *object_count);
 }

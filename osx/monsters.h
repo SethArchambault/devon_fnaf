@@ -8,6 +8,6 @@ void MonsterLoad(Monster *monsters, int *monster_count) {
         {-41, -4, DENNIS, UP, 0},
         {-6, -15, DONNY, DOWN, 0},
     };
-    *monster_count = 7;
+    *monster_count = sizeof(_monsters) / sizeof(Monster);
     memcpy(monsters, &_monsters, sizeof(Monster) * *monster_count);
 }

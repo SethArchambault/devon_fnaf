@@ -8,6 +8,11 @@
 #define Floor_Max 10000
 #define Object_Max 10000
 #define Water_Max 10000
+// if you put this above 75, the water stops showing
+// Monster is 12 bytes
+// 12 = 900 bytes
+// ... maybe it's overflowing the stack?
+#define Monster_Max  100000
 
 
 #define CREATE_ENUM(name) name,
@@ -61,6 +66,7 @@ char ObjectTypeString[13][20] = {
 	OBJECT(CREATE_STRINGS)
 };
 
+
 typedef struct {
     int x;
     int y;
@@ -78,11 +84,38 @@ typedef struct {
 
 #include "monsters.h"
 
+typedef struct {
+    int x;
+    int y;
+    int type;
+} Floor;
+
+typedef struct {
+    Floor items[Floor_Max];
+    int count;
+} Floors;
+
+
+// :floor type
+#define FLOOR(f) \
+    f(Wood) f(Tile) f(Concrete) f(BrokenTile) f(Blank) f(Grass) f(Asphalt) f(AsphaltLines) f(Sidewalk) f(Dirt) f(Water) f(FloorTypeEnd)
+
+typedef enum {
+    FLOOR(CREATE_ENUM)
+} FloorType;
+
+char FloorTypeString[13][20] =  {
+    FLOOR(CREATE_STRINGS)
+};
+
+#include "floors.h"
+
 int len(char * str){
     int i = 0;
     for (;str[i] != '\0';++i);
     return i;
 }
+
 
 void MonsterSave(Monster *monsters, int *monster_count) {
     void * buffer;
@@ -99,14 +132,15 @@ void MonsterSave(Monster *monsters, int *monster_count) {
         );
     }
     sprintf(str + len(str), "    };\n"
-        "    *monster_count = %d;\n"
+        "    *monster_count = sizeof(_monsters) / sizeof(Monster);\n"
         "    memcpy(monsters, &_monsters, sizeof(Monster) * *monster_count);\n"
-    "}\n", *monster_count);
+    "}\n");
 
     FILE *f = fopen("monsters.h", "w");
     fwrite(str, len(str), 1, f);
     fclose(f);
 }
+
 
 void ObjectSave(Object *objects, int *object_count) {
     void * buffer;
@@ -123,11 +157,35 @@ void ObjectSave(Object *objects, int *object_count) {
         );
     }
     sprintf(str + len(str), "    };\n"
-        "    *object_count = %d;\n"
+        "    *object_count = sizeof(_objects) / sizeof(Object);\n"
         "    memcpy(objects, &_objects, sizeof(Object) * *object_count);\n"
-    "}\n", *object_count);
+    "}\n");
 
     FILE *f = fopen("objects.h", "w");
+    fwrite(str, len(str), 1, f);
+    fclose(f);
+}
+
+void FloorSave(Floor *floors, int *floor_count) {
+    void * buffer;
+    char *str = malloc(100000);
+
+    strcat(str, 
+        "void FloorLoad(Floor *floors, int *floor_count) {\n"
+        "    Floor _floors[] = {\n");
+    for (int i = 0; i < *floor_count; ++i) {
+        Floor * f = &floors[i];
+        sprintf(str + len(str), 
+            "        {%d, %d, %s},\n",
+            f->x, f->y, FloorTypeString[f->type]
+        );
+    }
+    sprintf(str + len(str), "    };\n"
+        "    *floor_count = sizeof(_floors) / sizeof(Floor);\n"
+        "    memcpy(floors, &_floors, sizeof(Floor) * *floor_count);\n"
+    "}\n");
+
+    FILE *f = fopen("floors.h", "w");
     fwrite(str, len(str), 1, f);
     fclose(f);
 }
@@ -170,7 +228,6 @@ typedef enum {
 
 #define Dialogue_Max 20
 #define Line_Max 200
-#define Monster_Max 200
 
 // :state
 typedef struct {
@@ -260,23 +317,7 @@ void transport_player(int x, int y, Player *player) {
     player->y_pixel_dest = player->y_pixel;
 }
 
-// :floor type
-typedef enum {
-    Wood, Tile, Concrete, BrokenTile, Blank, Grass, Asphalt, AsphaltLines, Sidewalk, Dirt, Water, FloorTypeEnd
-} FloorType;
 
-
-
-typedef struct {
-    int x;
-    int y;
-    int type;
-} Floor;
-
-typedef struct {
-    Floor items[Floor_Max];
-    int count;
-} Floors;
 
 
 
@@ -510,15 +551,15 @@ void game() {
     Monster temp_monster;
     // :read ground.data
     
-    if(!LoadFromFilename((void *)floors, sizeof (Floors), "floor.data")) {
-        floors->count      = 0;
-    }
+    //if(!LoadFromFilename((void *)floors, sizeof (Floors), "floor.data")) {
+     //   floors->count      = 0;
+    //}
+    FloorLoad(floors->items, &floors->count);
+    FloorSave(floors->items, &floors->count);
 
     // :load objects
-    if(LoadFromFilename((void *) objects, sizeof(Objects), "objects.data")) {
-        printf("loaded %d objects\n", objects->count);
-    }
 
+	ObjectLoad(objects->items, &objects->count);
 	ObjectSave(objects->items, &objects->count);
 
     int * triggers = &state.triggers[0]; 
@@ -652,7 +693,9 @@ void game() {
                     ++floors->count;
                 }
                 // :save floors
-                SaveToFilename((void *)floors, sizeof(Floors),"floor.data");
+                FloorSave(floors->items, &floors->count);
+                //SaveToFilename((void *)floors, sizeof(Floors),"floor.data");
+
             }
             if(!IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_F)) {
                 // Check if object exists at these coordinates
@@ -679,7 +722,8 @@ void game() {
                     ++floors->count;
                 }
                 // :save floors
-                SaveToFilename((void *)floors, sizeof(Floors),"floor.data");
+                //SaveToFilename((void *)floors, sizeof(Floors),"floor.data");
+                FloorSave(floors->items, &floors->count);
             }
             // :change state of object
             if (IsKeyPressed(KEY_S)) {
@@ -695,7 +739,8 @@ void game() {
                     }
                 }
                 // :save objects
-                SaveToFilename((void *)objects, sizeof(Objects),"objects.data");
+                //SaveToFilename((void *)objects, sizeof(Objects),"objects.data");
+                ObjectSave(objects->items, &objects->count);
             }
             // :noclip
             if (IsKeyPressed(KEY_N)) {
@@ -716,7 +761,7 @@ void game() {
                     }
                 }
                 // :save objects
-                SaveToFilename((void *)objects, sizeof(Objects),"objects.data");
+                ObjectSave(objects->items, &objects->count);
             }
 
             // :object create
@@ -744,7 +789,7 @@ void game() {
                     ++objects->count;
                 }
                 // :save objects
-                SaveToFilename((void *)objects, sizeof(Objects),"objects.data");
+                ObjectSave(objects->items, &objects->count);
             }
             if (IsKeyPressed(KEY_EQUAL)) {
                 camera.zoom += 1;
@@ -761,7 +806,7 @@ void game() {
                         --objects->count;
                     }
                 }
-                SaveToFilename((void *)objects, sizeof(Objects),"objects.data");
+                ObjectSave(objects->items, &objects->count);
             }
         }
 
