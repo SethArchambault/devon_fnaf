@@ -168,7 +168,10 @@ void ObjectSave(Object *objects, int *object_count) {
 
 void FloorSave(Floor *floors, int *floor_count) {
     void * buffer;
-    char *str = malloc(100000);
+    // This could be a major problem later on.. we should use temporary memory
+    // :unsafe
+    char str[100000];
+    str[0] = '\0';
 
     strcat(str, 
         "void FloorLoad(Floor *floors, int *floor_count) {\n"
@@ -247,6 +250,7 @@ typedef struct {
     int clock_display;
     int failure_control;
     int failure_display;
+    int object_display;
     Monster monsters[Monster_Max];
     MonsterDirection monster_directions[Monster_Max];
     int monster_direction_count;
@@ -352,49 +356,6 @@ Rectangle RectanglePixelsFromXYCoords(int x, int y, int size) {
     return (Rectangle){ x * Tile_Size, y * Tile_Size, size, size};
 }
 
-int SaveToFilename(void * data, int size, char * filename) {
-    char path[100] = "assets/";
-    strcat(path, filename);
-    FILE * f = fopen(path, "w");
-    if (f != NULL) {
-        fwrite(data, size, 1, f);
-        fclose(f);
-        return 1;
-    }
-    return 0;
-}
-
-int SaveToFormattedFilename(void * data, int size, char * string, int value) {
-    char filename[100];
-    sprintf(filename, string, value);
-    return SaveToFilename(data, size, filename);
-}
-
-int LoadFromFilename(void * data, int size, char * filename) {
-    char path[100] = "assets/";
-    strcat(path, filename);
-    FILE *f = fopen(path, "r");
-    if (f != NULL) {
-        long int f_len;
-        fseek(f, 0, SEEK_END);
-        f_len = ftell(f);
-        printf("%s %ld %d\n", filename, f_len, size);
-        assert(f_len <= size);
-        fseek(f, 0, SEEK_SET);
-        fread(data, f_len, 1, f);
-        fclose(f);
-        return 1;
-    }
-    return 0;
-}
-
-int LoadFromFormattedFilename(void * data, int size, char * string, int value) { 
-    char filename[100];
-    sprintf(filename, string, value);
-    return LoadFromFilename(data, size, filename);
-}
-
-
 
 // :print text
 void printCustom(char * text, Vector2 *cursor, int fontsize, Color color) {
@@ -486,6 +447,7 @@ void game() {
         state.jumpscare_active   = 0;
         state.debug_display      = 0;
         state.clock_display      = 0;
+        state.object_display      = 1;
 
         state.monster_count      = 0;
         state.monsters_loaded    = 0;
@@ -633,8 +595,7 @@ void game() {
                 direction_pointer = strchr(dir_pointer, '\n');
                 direction_pointer++;
             }
-        }
-
+        } 
 
 
         
@@ -1427,6 +1388,38 @@ void game() {
             }
             sprintf(text, "%2d:%02d", hours, minutes);
             print(text, &print_data);
+        }
+
+
+        // :object display
+        if (state.object_display) {
+            Rectangle src_rect = (Rectangle){ 0, 0,16,16};
+            int size = 80;
+            int padding = 10;
+            int cols = 5;
+            int y = 100;
+            int x = 100;
+            DrawRectangle(
+                x, 
+                y + 100, 
+                (size + padding) * 5, 
+                (size + padding) * 4, 
+                Fade(BLACK, 0.9)
+            );
+            y += padding;
+            for(int i = 0; i != ObjectTypeEnd; ++i) {
+                x += padding;
+                if (i % cols == 0) {
+                    y += 100;
+                    y += padding;
+                    x = 100;
+                }
+                Rectangle dest_rect = (Rectangle){ x, y,size,size};
+                DrawTexturePro(
+                    objectTextures[i], src_rect, 
+                    dest_rect, (Vector2){0,0}, 0, WHITE);
+                x += size;
+            }
         }
 
         // :debug display

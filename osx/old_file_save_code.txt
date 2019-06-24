@@ -1,0 +1,43 @@
+
+int SaveToFilename(void * data, int size, char * filename) {
+    char path[100] = "assets/";
+    strcat(path, filename);
+    FILE * f = fopen(path, "w");
+    if (f != NULL) {
+        fwrite(data, size, 1, f);
+        fclose(f);
+        return 1;
+    }
+    return 0;
+}
+
+int SaveToFormattedFilename(void * data, int size, char * string, int value) {
+    char filename[100];
+    sprintf(filename, string, value);
+    return SaveToFilename(data, size, filename);
+}
+
+int LoadFromFilename(void * data, int size, char * filename) {
+    char path[100] = "assets/";
+    strcat(path, filename);
+    FILE *f = fopen(path, "r");
+    if (f != NULL) {
+        long int f_len;
+        fseek(f, 0, SEEK_END);
+        f_len = ftell(f);
+        printf("%s %ld %d\n", filename, f_len, size);
+        assert(f_len <= size);
+        fseek(f, 0, SEEK_SET);
+        fread(data, f_len, 1, f);
+        fclose(f);
+        return 1;
+    }
+    return 0;
+}
+
+int LoadFromFormattedFilename(void * data, int size, char * string, int value) { 
+    char filename[100];
+    sprintf(filename, string, value);
+    return LoadFromFilename(data, size, filename);
+}
+
