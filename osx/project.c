@@ -1,12 +1,6 @@
-/*
- * Robustness
- *   [ ] reload triggers
- *
- */
-
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
-#include "/opt/raylib/src/external/stb_image_write.h"
 #include <time.h>  // rand
 #define Role_Max 6
 #define Image_Size 16 
@@ -14,9 +8,231 @@
 #define Floor_Max 10000
 #define Object_Max 10000
 #define Water_Max 10000
-#include "project.h"
-#include <dlfcn.h> // external 
 
+
+#define CREATE_ENUM(name) name,
+#define CREATE_STRINGS(name) #name,
+
+// :direction
+#define DIRECTION(func) \
+  func(UP)        \
+  func(DOWN)       \
+  func(RIGHT)       \
+  func(LEFT)       
+
+typedef enum {
+	DIRECTION(CREATE_ENUM)
+} Direction;
+
+char DirectionString[6][10] = {
+	DIRECTION(CREATE_STRINGS)
+};
+
+// :monster
+typedef struct {
+    int x;
+    int y;
+    int type; // 0-9
+    Direction direction;
+    int mode; // 0-3
+} Monster;
+// :monster type
+
+#define MONSTER(f) \
+	f(BENNY) f(BUDDY) f(ALICE) f(ALEX) f(BOB) f(DENNIS) f(DONNY) f(MonsterTypeEnd)
+
+typedef enum {
+	MONSTER(CREATE_ENUM)
+} MonsterType;
+
+char MonsterTypeString[8][20] = {
+	MONSTER(CREATE_STRINGS)
+};
+
+// :object
+#define OBJECT(f) \
+    f(Table) f(Door) f(Chair) f(Sink) f(Stove) f(Counter) f(Generator) f(Switch) f(Fire) f(MiniVan) f(Important) f(Newspaper) f(ObjectTypeEnd)
+
+typedef enum {
+	OBJECT(CREATE_ENUM)
+} ObjectType;
+
+char ObjectTypeString[13][20] = {
+	OBJECT(CREATE_STRINGS)
+};
+
+typedef struct {
+    int x;
+    int y;
+    ObjectType type;
+    int rotation;
+    int actionFrame;
+} Object;
+
+#include "objects.h"
+
+typedef struct {
+    Object items[Object_Max];
+    int count;
+} Objects;
+
+#include "monsters.h"
+
+int len(char * str){
+    int i = 0;
+    for (;str[i] != '\0';++i);
+    return i;
+}
+
+void MonsterSave(Monster *monsters, int *monster_count) {
+    void * buffer;
+    char str[1000] = {0};
+
+    strcat(str, 
+        "void MonsterLoad(Monster *monsters, int *monster_count) {\n"
+        "    Monster _monsters[] = {\n");
+    for (int i = 0; i < *monster_count; ++i) {
+        Monster * m = &monsters[i];
+        sprintf(str + len(str), 
+            "        {%d, %d, %s, %s, %d},\n",
+            m->x, m->y, MonsterTypeString[m->type], DirectionString[m->direction], m->mode
+        );
+    }
+    sprintf(str + len(str), "    };\n"
+        "    *monster_count = %d;\n"
+        "    memcpy(monsters, &_monsters, sizeof(Monster) * *monster_count);\n"
+    "}\n", *monster_count);
+
+    FILE *f = fopen("monsters.h", "w");
+    fwrite(str, len(str), 1, f);
+    fclose(f);
+}
+
+void ObjectSave(Object *objects, int *object_count) {
+    void * buffer;
+    char str[3000] = {0};
+
+    strcat(str, 
+        "void ObjectLoad(Object *objects, int *object_count) {\n"
+        "    Object _objects[] = {\n");
+    for (int i = 0; i < *object_count; ++i) {
+        Object * s = &objects[i];
+        sprintf(str + len(str), 
+            "        {%d, %d, %s, %d, %d},\n",
+            s->x, s->y, ObjectTypeString[s->type], s->rotation, s->actionFrame
+        );
+    }
+    sprintf(str + len(str), "    };\n"
+        "    *object_count = %d;\n"
+        "    memcpy(objects, &_objects, sizeof(Object) * *object_count);\n"
+    "}\n", *object_count);
+
+    FILE *f = fopen("objects.h", "w");
+    fwrite(str, len(str), 1, f);
+    fclose(f);
+}
+
+
+// :action
+typedef enum {
+    STAND, WALK, DEAD
+} Action;
+
+
+// :monster direction
+typedef struct{
+    int x;
+    int y;
+    Direction direction;
+} MonsterDirection;
+
+// :player
+typedef struct {
+    int x;
+    int y;
+    int x_dest;
+    int y_dest;
+    float x_pixel;
+    float y_pixel;
+    float x_pixel_dest;
+    float y_pixel_dest;
+    float distance;
+    int moving_x;
+    int moving_y;
+    Direction direction;
+    Action action;
+} Player;
+
+// :trigger
+typedef enum {
+    Accident, EnterFire, LeaveFire, EnterCar, ViewsDarkness, SeeDamange, SeeGenerator, BadDoor, SeeFireplace, SeeSecret, DoorEntered, ReadsPaper, ReadsPaper2, TriggerEnd
+} Trigger;
+
+#define Dialogue_Max 20
+#define Line_Max 200
+#define Monster_Max 200
+
+// :state
+typedef struct {
+    int normal_control;
+    int normal_display;
+    int title_control;
+    int title_display;
+    int dialogue_control;
+    int dialogue_display;
+    int debug_control;
+    int debug_display;
+    int build_control;
+    int intro_control;
+    int monsters_control;
+    int jumpscare_active;
+    int clock_control;
+    int clock_display;
+    int failure_control;
+    int failure_display;
+    Monster monsters[Monster_Max];
+    MonsterDirection monster_directions[Monster_Max];
+    int monster_direction_count;
+    int monster_count;
+    int monsters_loaded;
+    Texture2D monsterTextures[MonsterTypeEnd];
+    Player player;
+    int triggers[20];
+    int dialogue_index;
+    char dialogue_queue[Dialogue_Max][Line_Max];
+} State;
+
+void print_state(State * state) {
+    printf("failure_control %d\n", state->failure_control);
+}
+
+// :state type
+typedef enum {
+    NormalState, DialogueState
+} StateType;
+
+void AddDialogue(char (* dialogue_queue)[20][Line_Max], const char * text) {
+
+    int i = 0;
+    for (; (*dialogue_queue)[i][0] != '\0'; i++);
+    strcpy((*dialogue_queue)[i], text);
+    i++;
+    (*dialogue_queue)[i][0] = '\0';
+}
+void changeState(State * state, StateType new_state) {
+    if (new_state == NormalState) {
+        state->dialogue_control     = 0;
+        state->normal_control       = 1;
+        state->normal_display       = 1;
+        state->dialogue_display     = 0;
+    }
+    if (new_state == DialogueState) {
+        state->intro_control        = 0;
+        state->normal_control       = 0;
+        state->dialogue_control     = 1;
+        state->dialogue_display     = 1;
+    }
+}
 
 void MonsterAdd(Monster *monsters, int x, int y, int type, Direction direction, int * monster_count) {
         monsters[*monster_count].x = x;
@@ -44,29 +260,11 @@ void transport_player(int x, int y, Player *player) {
     player->y_pixel_dest = player->y_pixel;
 }
 
-
 // :floor type
 typedef enum {
     Wood, Tile, Concrete, BrokenTile, Blank, Grass, Asphalt, AsphaltLines, Sidewalk, Dirt, Water, FloorTypeEnd
 } FloorType;
-// :object
-typedef enum {
-    Table, Door, Chair, Sink, Stove, Counter, Generator, Switch, Fire, MiniVan, Important, Newspaper, ObjectTypeEnd
-} ObjectType;
 
-
-typedef struct {
-    int x;
-    int y;
-    ObjectType type;
-    int rotation;
-    int actionFrame;
-} Object;
-
-typedef struct {
-    Object items[Object_Max];
-    int count;
-} Objects;
 
 
 typedef struct {
@@ -321,8 +519,7 @@ void game() {
         printf("loaded %d objects\n", objects->count);
     }
 
-    
-
+	ObjectSave(objects->items, &objects->count);
 
     int * triggers = &state.triggers[0]; 
     for (int i = 0; i < TriggerEnd; ++i) {
@@ -341,18 +538,8 @@ void game() {
             Monster * monsters = &state.monsters[0];
 
             int * monster_count = &state.monster_count;
-            *monster_count = 0;
-            //BENNY, BUDDY, ALICE, ALEX, BOB, DENNIS, DONNY 
-            //MonsterAdd(monsters, -16, -40, BENNY,  monmter_count);
-            //MonsterAdd(monsters, -10, -46, BENNY,  monster_count);
-            MonsterAdd(monsters, -9, -18, BENNY, UP,  monster_count);
-            MonsterAdd(monsters, -2, -14, BUDDY,  RIGHT, monster_count);
-            MonsterAdd(monsters, -7, -18, ALICE,  LEFT, monster_count);
-            MonsterAdd(monsters,-11, -18, ALEX,   DOWN, monster_count);
-            MonsterAdd(monsters,-27, -13, BOB,    RIGHT, monster_count);
-            MonsterAdd(monsters,-41, -4, DENNIS, UP, monster_count);
-            MonsterAdd(monsters, -6, -15, DONNY,  DOWN, monster_count);
-
+            MonsterLoad(monsters, monster_count);
+            MonsterSave(monsters, monster_count);
 
                         
             int * monster_direction_count = &state.monster_direction_count;
@@ -924,7 +1111,6 @@ void game() {
                         }
                     } else { // :monster random movement
                         int random_number = rand() %4;
-                        printf("%d\n", random_number);
                         if (random_number == 0) {
                             monster->x += 1;
                         }
