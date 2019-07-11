@@ -1,15 +1,7 @@
 
-# Items
-
-- pliers
-- fuse
-- 
+object should do certain things.
 
 
-Sat
-
-- [ ] Task list
-- [x] new font
 
 later
  *  12am-6am 25 minutes long in real time
@@ -137,6 +129,12 @@ plot
 
 
 # Log
+
+> 7.6.2019
+
+- [ ] Add flashlight
+- [ ] Lights go out when you pick up the paper (change this to a phone)
+
 
 > 4.13.2019
 

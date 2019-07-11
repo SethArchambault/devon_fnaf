@@ -6,28 +6,36 @@
 
 
 bool left() {
-    if (IsKeyDown(KEY_LEFT)) {
+
+    if (IsKeyDown(KEY_LEFT)|| IsKeyDown(KEY_A)) {
         return 1;
     } else {
         return 0;
     }
 }
 bool leftPressed() {
-    if (IsKeyPressed(KEY_LEFT)) {
+    if (IsKeyPressed(KEY_LEFT)|| IsKeyPressed(KEY_A)) {
         return 1;
     } else {
         return 0;
     }
 }
 bool right() {
-    if (IsKeyDown(KEY_RIGHT)) {
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)) {
         return 1;
     } else {
         return 0;
     }
 }
 bool rightPressed() {
-    if (IsKeyPressed(KEY_RIGHT)) {
+    if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+bool shift() {
+    if(IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) {
         return 1;
     } else {
         return 0;
@@ -35,7 +43,7 @@ bool rightPressed() {
 }
 
 bool down() {
-    if (IsKeyDown(KEY_DOWN)) {
+    if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) {
         return 1;
     } else {
         return 0;
@@ -43,21 +51,21 @@ bool down() {
 }
 
 bool downPressed() {
-    if (IsKeyPressed(KEY_DOWN)) {
+    if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) {
         return 1;
     } else {
         return 0;
     }
 }
 bool up() {
-    if (IsKeyDown(KEY_UP)) {
+    if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) {
         return 1;
     } else {
         return 0;
     }
 }
 bool upPressed() {
-    if (IsKeyPressed(KEY_UP)) {
+    if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) {
         return 1;
     } else {
         return 0;
