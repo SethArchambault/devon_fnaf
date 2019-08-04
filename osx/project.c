@@ -3,10 +3,8 @@
 #include <string.h>
 #include <time.h>  // rand
 
-
 #include "stb_image.h"
 #include "image_binary_vars.h"
-
 
 #define Role_Max 6
 #define Image_Size 16 
@@ -19,7 +17,6 @@
 // 12 = 900 bytes
 // ... maybe it's overflowing the stack?
 #define Monster_Max  100000
-
 
 #define CREATE_ENUM(name) name,
 #define CREATE_STRINGS(name) #name,
@@ -106,7 +103,6 @@ typedef struct {
     int count;
 } Floors;
 
-
 // :floor type
 #define FLOOR(f) \
     f(Wood) f(Tile) f(Concrete) f(BrokenTile) f(Blank) f(Grass) f(Asphalt) f(AsphaltLines) f(Sidewalk) f(Dirt) f(Water) f(FloorTypeEnd)
@@ -151,7 +147,6 @@ void MonsterSave(Monster *monsters, int *monster_count) {
     fwrite(str, len(str), 1, f);
     fclose(f);
 }
-
 
 void ObjectSave(Object *objects, int *object_count) {
     void * buffer;
@@ -204,12 +199,10 @@ void FloorSave(Floor *floors, int *floor_count) {
     fclose(f);
 }
 
-
 // :action
 typedef enum {
     STAND, WALK, DEAD
 } Action;
-
 
 // :monster direction
 typedef struct{
@@ -371,10 +364,10 @@ int int_from_float(float f) {
 Vector2 Vector2PixelsFromXYCoords(int x, int y) {
     return (Vector2){ x * Tile_Size, y * Tile_Size };
 }
+
 Rectangle RectanglePixelsFromXYCoords(int x, int y, int size) {
     return (Rectangle){ x * Tile_Size, y * Tile_Size, size, size};
 }
-
 
 // :print text
 void printCustom(char * text, Vector2 *cursor, int fontsize, Color color) {
@@ -390,6 +383,7 @@ typedef struct {
     int height;
     Color color; 
 } PrintData;
+
 void print(char * text, PrintData * print_data) {
     printWithHeight(text, &print_data->cursor, print_data->fontsize, print_data->height, print_data->color);
 }
@@ -418,14 +412,11 @@ void game() {
     SetTargetFPS(59);
 #define monster_max 10
 
-
-
     // :load sound
     InitAudioDevice(); 
-    Sound monsterScreamSound    = LoadSound("assets/sound/monster_scream.ogg");  
-    Sound doorOpenSound         = LoadSound("assets/sound/door_open.ogg");
-    Sound doorCloseSound        = LoadSound("assets/sound/door_close.ogg");
-
+    Sound monsterScreamSound    = LoadSound("assets/sound_MonsterScream.ogg");  
+    Sound doorOpenSound         = LoadSound("assets/sound_DoorOpenCreek.ogg");
+    Sound doorCloseSound        = LoadSound("assets/sound_DoorCloseCreek.ogg");
 
     //
     // :init 
