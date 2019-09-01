@@ -38,6 +38,26 @@ char DirectionString[6][10] = {
 	DIRECTION(CREATE_STRINGS)
 };
 
+// :shaders
+
+
+typedef enum {
+    FX_GRAYSCALE = 0,
+    FX_POSTERIZATION,
+    FX_DREAM_VISION,
+    FX_PIXELIZER,
+    FX_CROSS_HATCHING,
+    FX_CROSS_STITCHING,
+    FX_PREDATOR_VIEW,
+    FX_SCANLINES,
+    FX_FISHEYE,
+    FX_SOBEL,
+    FX_BLOOM,
+    FX_BLUR,
+    FX_DISTORTION
+    //FX_FXAA
+} PostproShader;
+
 // :monster
 typedef struct {
 	int x;
@@ -259,6 +279,7 @@ typedef struct {
 	int failure_display;
 	int success_control;
 	int success_display;
+	int flashlight_display;
 	int select_floor_display;
 	int select_floor_control;
 	int select_floor_ndx;
@@ -447,7 +468,55 @@ void game() {
 	//
 	// :init 
 	//
-	int camera_offset_y = 500;
+	
+//:darkness
+				Image flashlight_down_masked =   GenImageColor(screen.x,screen.y, BLACK);
+				Image flashlight_left_masked =   GenImageColor(screen.x,screen.y, BLACK);
+				Image flashlight_down_image = LoadImage("assets/flashlight_down_cone.png");
+				Image flashlight_left_image = LoadImage("assets/flashlight_left_cone.png");
+				float darkness_level = 0.9;
+				ImageAlphaClear(&flashlight_down_image, BLACK, darkness_level);
+				ImageAlphaClear(&flashlight_left_image, BLACK, darkness_level);
+				ImageAlphaMask(&flashlight_down_masked, flashlight_down_image);
+				ImageAlphaMask(&flashlight_left_masked, flashlight_left_image);
+				ImageColorTint(&flashlight_down_masked, Fade(BLACK, darkness_level));
+				ImageColorTint(&flashlight_left_masked, Fade(BLACK, darkness_level));
+				Texture2D flashlight_down= LoadTextureFromImage(flashlight_down_masked);
+				ImageRotateCW(&flashlight_down_masked);
+				ImageRotateCW(&flashlight_down_masked);
+				Texture2D flashlight_up = LoadTextureFromImage(flashlight_down_masked);
+				Texture2D flashlight_left= LoadTextureFromImage(flashlight_left_masked);
+				ImageRotateCW(&flashlight_left_masked);
+				ImageRotateCW(&flashlight_left_masked);
+				Texture2D flashlight_right = LoadTextureFromImage(flashlight_left_masked);
+
+// :shaders
+#define MAX_POSTPRO_SHADERS         13
+ Shader shaders[MAX_POSTPRO_SHADERS] = { 0 };
+
+    // NOTE: Defining 0 (NULL) for vertex shader forces usage of internal default vertex shader
+    shaders[FX_GRAYSCALE] = LoadShader(0, "assets/shaders/grayscale.fs");
+    shaders[FX_POSTERIZATION] = LoadShader(0, "assets/shaders/posterization.fs");
+    shaders[FX_DREAM_VISION] = LoadShader(0, "assets/shaders/dream_vision.fs");
+    shaders[FX_PIXELIZER] = LoadShader(0, "assets/shaders/pixelizer.fs");
+    shaders[FX_CROSS_HATCHING] = LoadShader(0, "assets/shaders/cross_hatching.fs");
+    shaders[FX_CROSS_STITCHING] = LoadShader(0, "assets/shaders/cross_stitching.fs");
+    shaders[FX_PREDATOR_VIEW] = LoadShader(0, "assets/shaders/predator.fs");
+    shaders[FX_SCANLINES] = LoadShader(0, "assets/shaders/scanlines.fs");
+    shaders[FX_FISHEYE] = LoadShader(0, "assets/shaders/fisheye.fs");
+    shaders[FX_SOBEL] = LoadShader(0, "assets/shaders/sobel.fs");
+    shaders[FX_BLOOM] = LoadShader(0, "assets/shaders/bloom.fs");
+    shaders[FX_BLUR] = LoadShader(0, "assets/shaders/blur.fs");
+    shaders[FX_DISTORTION] = LoadShader(0, "assets/shaders/distortion.fs");
+    int currentShader = FX_BLOOM;
+
+    
+
+
+    // Create a RenderTexture2D to be used for render to texture
+    RenderTexture2D target = LoadRenderTexture(screen.x, screen.y);
+    
+    int camera_offset_y = 500;
 	int hide_outdoors = 0;
 	// :state
 	State state;
@@ -463,6 +532,7 @@ void game() {
 	state.select_object_control = 0;
 	state.normal_display     = 1;
 	state.title_display      = 1;
+	state.flashlight_display      = 0;
 	state.dialogue_display   = 0;
 	state.failure_display    = 0;
 	state.success_display    = 0;
@@ -607,6 +677,11 @@ void game() {
 		if (IsKeyPressed(KEY_F1)) {
 			state.debug_display = !state.debug_display;
 		}
+		if (IsKeyPressed(KEY_F2)) {
+			currentShader++;
+			if (currentShader >= MAX_POSTPRO_SHADERS) currentShader = 0;
+	}
+
 
 
 		// :intro control
@@ -655,6 +730,7 @@ void game() {
 			}
 			// :change state of object
 			if (IsKeyPressed(KEY_S)) {
+
 				// Check if object exists at these coordinates
 				for (int i = 0; i < objects->count;++i) {
 					Object *object = &objects->items[i];
@@ -881,6 +957,7 @@ void game() {
 				// close door
 				objects->items[14].actionFrame = 0;
 				hide_outdoors = 1;
+				state.flashlight_display = 1;
 
 				AddDialogue(dialogue_queue, "Dang! The wind slammed the door on me!");
 				AddDialogue(dialogue_queue, "And it won't budge! Guess I'm here till the next shift comes for me..");
@@ -1266,6 +1343,8 @@ void game() {
 				++frame;
 				if (frame > 4) frame = 0;
 			}
+        // :shader
+            BeginTextureMode(target);       // Enable drawing to texture
 			BeginMode2D(camera);
 			//   :draw floor 
 			for (int i = 0; i < floors->count; ++i) {
@@ -1325,32 +1404,39 @@ void game() {
 
 			EndMode2D();
             // :flashlight display
-            {
-                DrawRectangle(0,0, screen.x, screen.y, Fade(BLACK, 0.8));
+			if (state.flashlight_display) {
+
+// create image
+
                 Vector2 Person = {screen.x/2, screen.y/2};
                 int width = 100;
                 int length = 300;
                 Color Blue = Fade(BLUE, 0.5);
                 if (player->direction == RIGHT) {
-                    Vector2 Flashlight1 = {Person.x + length, Person.y+width,};
-                    Vector2 Flashlight2 = {Person.x + length, Person.y-width,};
-                    DrawTriangle(Person, Flashlight1, Flashlight2, Blue);
+                    //Vector2 Flashlight1 = {Person.x + length, Person.y+width,};
+                    //Vector2 Flashlight2 = {Person.x + length, Person.y-width,};
+                    //DrawTriangle(Person, Flashlight1, Flashlight2, Blue);
+					DrawTexture(flashlight_right, 0, 0,WHITE);
                 }
                 if (player->direction == LEFT) {
-                    Vector2 Flashlight1 = {Person.x - length, Person.y+width,};
-                    Vector2 Flashlight2 = {Person.x - length, Person.y-width,};
-                    DrawTriangle(Flashlight1, Person, Flashlight2, Blue);
+                    //Vector2 Flashlight1 = {Person.x - length, Person.y+width,};
+                    //Vector2 Flashlight2 = {Person.x - length, Person.y-width,};
+                    //DrawTriangle(Flashlight1, Person, Flashlight2, Blue);
+					DrawTexture(flashlight_left, 0, 0,WHITE);
                 }
                 if (player->direction == UP ) {
                     Vector2 Flashlight1 = {Person.x - width, Person.y-length,};
                     Vector2 Flashlight2 = {Person.x + width, Person.y-length,};
-                    DrawTriangle(Flashlight1, Person, Flashlight2, Blue);
+                    //DrawTriangle(Flashlight1, Person, Flashlight2, Blue);
+					DrawTexture(flashlight_up, 0, 0,WHITE);
                 }
                 if (player->direction == DOWN ) {
-                    Vector2 Flashlight1 = {Person.x - width, Person.y+length,};
-                    Vector2 Flashlight2 = {Person.x + width, Person.y+length,};
-                    DrawTriangle(Person, Flashlight1, Flashlight2, Blue);
+                    //Vector2 Flashlight1 = {Person.x - width, Person.y+length,};
+                    //Vector2 Flashlight2 = {Person.x + width, Person.y+length,};
+                //    DrawTriangle(Person, Flashlight1, Flashlight2, Blue);
+					DrawTexture(flashlight_down, 0, 0,WHITE);
                 }
+				//Image flashlight_image = GetTextureData(flashlight_texture);
 
 
             }
@@ -1641,8 +1727,10 @@ void game() {
 			print("o = place object", &print_data);
 		} // display debug
 
-		// :darkness
-		//DrawRectangle(0, 0, screen.x, screen.y, Fade(BLACK, 0.7));
+        EndTextureMode();
+		BeginShaderMode(shaders[currentShader]);
+            DrawTextureRec(target.texture, (Rectangle){ 0, 0, target.texture.width, -target.texture.height }, (Vector2){ 0, 0 }, WHITE);
+        EndShaderMode();
 
 		EndDrawing();
 	}//while
