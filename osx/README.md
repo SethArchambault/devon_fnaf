@@ -130,9 +130,14 @@ plot
 
 # Log
 
+> 8.17.2019
+
+- [x] Flashlight - point it around the screen based on character 
+    void BeginBlendMode(int mode);                                                                      // Begin blending mode (alpha, additive, multiplied)
+- [ ] Lighting - subtract from a big block of pixels 
+
 > 7.6.2019
 
-- [ ] Add flashlight
 - [ ] Lights go out when you pick up the paper (change this to a phone)
 
 

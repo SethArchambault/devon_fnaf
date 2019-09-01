@@ -41,7 +41,7 @@ void ObjectLoad(Object *objects, int *object_count) {
         {-16, -1, Table, 15397, 0, 0},
         {-15, -12, Generator, -467819870, 1915816175, 0},
         {-19, -4, Generator, -1890094782, 1606847935, 0},
-        {-20, -2, Generator, 1915816175, -636072909, 0},
+        {-20, -2, Generator, 1915816175, -636072829, 0},
         {-9, 16, Door, 2, 0, 0},
         {-22, -6, Chair, -1808601657, 964741294, 0},
         {-16, 16, Door, 0, 0, 0},
@@ -55,6 +55,9 @@ void ObjectLoad(Object *objects, int *object_count) {
         {-14, 14, Rope, 0, 0, 1},
         {-10, 18, Crowbar, 0, 0, 1},
         {19, 11, Fireaxe, 0, 0, 1},
+        {-13, -14, Chair, 0, 0, 0},
+        {-12, -14, Chair, 0, 0, 0},
+        {-11, -13, Chair, 1, 0, 0},
     };
     *object_count = sizeof(_objects) / sizeof(Object);
     memcpy(objects, &_objects, sizeof(Object) * *object_count);
